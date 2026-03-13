@@ -1,8 +1,12 @@
 FROM mcr.microsoft.com/devcontainers/go:1.22
 
+# Remove stale yarn repo that has GPG key issues
+RUN rm -f /etc/apt/sources.list.d/yarn.list 2>/dev/null || true
+
 RUN apt-get update && apt-get install -y \
     git \
     zstd \
+    upx \
     && rm -rf /var/lib/apt/lists/*
 
 # Install just (task runner)
