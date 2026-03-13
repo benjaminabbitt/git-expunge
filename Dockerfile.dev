@@ -18,6 +18,3 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash 
 
 # Install golangci-lint
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin
-
-# Install gofumpt for formatting
-RUN go install mvdan.cc/gofumpt@latest
