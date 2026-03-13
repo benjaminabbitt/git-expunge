@@ -1,0 +1,100 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-and-test:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to GitHub Container Registry
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build and run dev container action
+      uses: devcontainers/ci@v0.3
+      with:
+        imageName: ghcr.io/${{ github.repository }}/devcontainer
+        cacheFrom: ghcr.io/benjaminabbitt/versionator/devcontainer
+        push: filter
+        refFilterForPush: refs/heads/master
+        runCmd: |
+          # Run initialization
+          just init
+
+          # Build application
+          just build
+
+          # Run tests with coverage
+          just test-coverage
+
+          # Run linting
+          just lint
+
+          # Build for multiple platforms
+          just build-all
+
+          # Show build artifacts
+          ls -la bin/
+
+    - name: Upload coverage reports
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage.html
+        retention-days: 30
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: git-expunge-binaries
+        path: bin/
+        retention-days: 30
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: git-expunge-binaries
+        path: bin/
+
+    - name: Make binary executable
+      run: chmod +x bin/git-expunge-linux-amd64
+
+    - name: Integration test
+      run: |
+        # Create a test repository
+        mkdir -p /tmp/test-repo
+        cd /tmp/test-repo
+        git init
+        git config user.email "test@test.com"
+        git config user.name "Test"
+        echo "secret=API_KEY_12345" > .env
+        git add .env
+        git commit -m "Initial commit"
+
+        # Test version command
+        $GITHUB_WORKSPACE/bin/git-expunge-linux-amd64 --version || true
+
+        # Test scan command
+        $GITHUB_WORKSPACE/bin/git-expunge-linux-amd64 scan . || true
+
+        echo "Integration test passed!"

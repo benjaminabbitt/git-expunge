@@ -1,0 +1,686 @@
+{
+  "0144e9fecb0fcdb930cf26b6dd9a569fcad263b5": {
+    "blob_hash": "0144e9fecb0fcdb930cf26b6dd9a569fcad263b5",
+    "type": "binary",
+    "path": "examples/go/customer/customer",
+    "size": 16491346,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "71c3b91c2be71a42b26f43b335ebd176794419f0"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 dd 47 00 00 00 00 00  |..\u003e..... .G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "01d3cfb2d3b66e4da8063a216d58c2af4c04696d": {
+    "blob_hash": "01d3cfb2d3b66e4da8063a216d58c2af4c04696d",
+    "type": "secret",
+    "path": "deploy/tofu/environments/local/terraform.tfstate.1770157707.backup",
+    "size": 51027,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "{\"version\":4,\"terraform_version\":\"1.8.8\",\"serial\":190,\"lineage\":\"f2e0ffcb-a8ab-c99d-81ed-b53972ed4dfe\",\"outputs\":{\"grafana_url\":{\"value\":\"http://localhost:3000\",\"type\":\"string\"},\"mesh_enabled\":{\"value\":false,\"type\":\"bool\"},\"namespace\":{\"value\":\"angzarr\",\"type\":\"string\"},\"observability_enabled\":{\"value\":true,\"type\":\"bool\"},\"otel_collector_endpoint\":{\"value\":\"angzarr-otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4317\",\"type\":\"string\"},\"secrets_source\":{\"value\":\"kubernetes_secret/angzarr-\n...",
+    "purge": false
+  },
+  "04b1191aeebf822e90dce28c18ede180443884af": {
+    "blob_hash": "04b1191aeebf822e90dce28c18ede180443884af",
+    "type": "binary",
+    "path": "deploy/k8s/helm/observability/charts/loki-6.53.0.tgz",
+    "size": 168381,
+    "mime_type": "application/gzip",
+    "commits": [
+      "885d311e62454917c7779950f0a81f9bcadb6e80"
+    ],
+    "preview": "0000  1f 8b 08 14 00 00 00 00 00 ff 29 00 2b 61 48 52  |..........).+aHR|\n0010  30 63 48 4d 36 4c 79 39 35 62 33 56 30 64 53 35  |0cHM6Ly95b3V0dS5|\n0020  69 5a 53 39 36 4f 56 56 36 4d 57 6c 6a 61 6e 64  |iZS96OVV6MWljand|\n0030  79 54 51 6f 3d 48 65 6c 6d 00 ec bd fb 77 e3 36  |yTQo=Helm....w.6|\n0040  92 2f be 3f eb af c0 b1 73 8f bb e7 5a f2 a3 1f  |./.?....s...Z...|\n0050  49 b4 9b f9 ae fb 91 c4 77 fb e1 db ee 4e ee de  |I.......w....N..|\n0060  d9 3d 36 44 42 12 62 8a e0 10 a0 6d 25 d3 f7 6f  |.=6DB.b....m%..o|\n0070  ff 1e 54 01 20 48 82 12 25 5b 6d f7 c4 7d ce 4c  |..T. H..%[m..}.L|\n0080  2c 12 28 80 78 14 aa 3e 55 a8 4a c4 05 df 7b 39  |,.(.x..\u003eU.J...{9|\n0090  a5 b9 1a cc e9 2c f9 97 4d fc db df df df 7f fe  |.....,..M.......|\n00a0  f4 29 fc 77 7f 7f bf fe df 83 6f 0f 0e ff e5 e0  |.).w......o.....|\n00b0  d9 c1 d3 c3 e7 4f 9f 1e 3e 7b fe 2f fb 07 87 07  |.....O..\u003e{./....|\n00c0  4f 0f fe 85 ec 6f a4 37 b5 7f 85 54 34 ff 97 fd  |O....o.7...T4...|\n00d0  1b b7 55 ff b8 af e4 1f cd f8 2f 2c 97 5c a4 43  |..U......./,.\\.C|\n00e0  72 79 d8 a3 59 e6 7e 3e 19 3c 1f 3c eb c5 2c 63  |ry..Y.~\u003e.\u003c.\u003c..,c|\n00f0  69 cc d2 88 33 39 ec f5 09 4d 38 95 43 32 e3 29  |i...39...M8.C2.)|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "092490ca554baaf82914156f07a1f5563861a815": {
+    "blob_hash": "092490ca554baaf82914156f07a1f5563861a815",
+    "type": "binary",
+    "path": "examples/go/table/saga-hand/saga-hand",
+    "size": 16708590,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "885d311e62454917c7779950f0a81f9bcadb6e80"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 c0 e7 47 00 00 00 00 00  |..\u003e.......G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "0a7bd7ac39410521db776bb0670b4be36c9a398e": {
+    "blob_hash": "0a7bd7ac39410521db776bb0670b4be36c9a398e",
+    "type": "binary",
+    "path": "examples/go/projector-log-customer/projector-log-customer",
+    "size": 16177448,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 dd 47 00 00 00 00 00  |..\u003e..... .G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "0f7a24906ba5c269d0c30603d7ef12225947dc8a": {
+    "blob_hash": "0f7a24906ba5c269d0c30603d7ef12225947dc8a",
+    "type": "secret",
+    "path": "src/payload_store/s3.rs",
+    "size": 9603,
+    "rule": "generic-api-key",
+    "commits": [
+      "57f067acf3c28aef905a145c4d93f0071d387bc2"
+    ],
+    "preview": "//! Amazon S3 payload store.\n//!\n//! Stores payloads as objects in an S3 bucket:\n//! ```text\n//! s3://{bucket}/{prefix}/{hash[0:2]}/{hash}\n//! ```\n\nuse std::time::{Duration, SystemTime};\n\nuse async_trait::async_trait;\nuse aws_sdk_s3::operation::get_object::GetObjectError;\nuse aws_sdk_s3::primitives::ByteStream;\nuse aws_sdk_s3::Client;\nuse prost_types::Timestamp;\nuse tracing::{debug, warn};\n\nuse super::{compute_hash, hash_to_hex, PayloadStore, PayloadStoreError, Result};\nuse crate::proto::{PayloadReference, \n...",
+    "purge": false
+  },
+  "1082a9f297f89271455d497876a305899fdd9f20": {
+    "blob_hash": "1082a9f297f89271455d497876a305899fdd9f20",
+    "type": "binary",
+    "path": "examples/go/upc",
+    "size": 16266733,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "029c871600fdc2fee6fa6e10b3f16117f29f976c"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 c0 e7 47 00 00 00 00 00  |..\u003e.......G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "17458485a5ab2f168045ca8669ddd2d27629ef30": {
+    "blob_hash": "17458485a5ab2f168045ca8669ddd2d27629ef30",
+    "type": "binary",
+    "path": "deploy/helm/angzarr-mq-kafka/charts/kafka-31.0.0.tgz",
+    "size": 148537,
+    "mime_type": "application/gzip",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "0000  1f 8b 08 14 00 00 00 00 00 ff 29 00 2b 61 48 52  |..........).+aHR|\n0010  30 63 48 4d 36 4c 79 39 35 62 33 56 30 64 53 35  |0cHM6Ly95b3V0dS5|\n0020  69 5a 53 39 36 4f 56 56 36 4d 57 6c 6a 61 6e 64  |iZS96OVV6MWljand|\n0030  79 54 51 6f 3d 48 65 6c 6d 00 ec fd fb 77 db 36  |yTQo=Helm....w.6|\n0040  f2 37 8e ef cf fa 2b 70 94 ee 13 bb 35 e9 4b 2e  |.7....+p....5.K.|\n0050  dd ea bd d9 f3 55 1d b7 75 63 c7 fa da ee 65 6f  |.....U..uc....eo|\n0060  27 81 48 48 62 4c 11 5c 02 b4 a3 76 fb bf 7f 0e  |'.HHbL.\\...v....|\n0070  06 77 5e 24 4a b6 d3 a4 eb be 9f 67 63 91 e0 cc  |.w^$J......gc...|\n0080  60 30 00 06 83 c1 0b 57 78 72 85 77 0f 67 b8 e0  |`0.....Wxr.w.g..|\n0090  e1 02 cf d3 3f dd c3 7f 7b 7b 7b 7b cf 9f 3e 85  |....?...{{{{..\u003e.|\n00a0  7f f7 f6 f6 aa ff 1e 3c 79 fa fc 4f fb 4f bf dc  |.......\u003cy..O.O..|\n00b0  7f fa fc e9 b3 a7 cf bf fc d3 de fe c1 c1 97 cf  |................|\n00c0  fe 84 f6 ee 43 98 ea 7f 25 e3 b8 f8 d3 de ad 79  |....C...%......y|\n00d0  55 2b f7 89 fc 87 b3 8c 72 cc 13 9a b1 41 0f a1  |U+......r....A..|\n00e0  08 73 32 a5 c5 62 80 8e b3 49 81 19 2f ca 88 97  |.s2..b...I../...|\n00f0  05 e9 21 94 cc f1 94 b0 01 fa 6f 0f 21 84 02 94  |..!.......o.!...|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "1a0ff8442e2969f1c1651e2bb8e98fead062e679": {
+    "blob_hash": "1a0ff8442e2969f1c1651e2bb8e98fead062e679",
+    "type": "secret",
+    "path": "deploy/tofu/environments/local/terraform.tfstate.1768692556.backup",
+    "size": 8448,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "{\n  \"version\": 4,\n  \"terraform_version\": \"1.14.3\",\n  \"serial\": 19,\n  \"lineage\": \"f2e0ffcb-a8ab-c99d-81ed-b53972ed4dfe\",\n  \"outputs\": {\n    \"database_host\": {\n      \"value\": \"angzarr-db-postgresql.angzarr.svc.cluster.local\",\n      \"type\": \"string\"\n    },\n    \"database_secret\": {\n      \"value\": \"angzarr-db-credentials\",\n      \"type\": \"string\"\n    },\n    \"mesh_enabled\": {\n      \"value\": false,\n      \"type\": \"bool\"\n    },\n    \"messaging_host\": {\n      \"value\": \"angzarr-mq.angzarr.svc.cluster.local\",\n      \"type\n...",
+    "purge": false
+  },
+  "1b170f2afc9dd05e90c47f9e40af42a72c1890bc": {
+    "blob_hash": "1b170f2afc9dd05e90c47f9e40af42a72c1890bc",
+    "type": "binary",
+    "path": "examples/kotlin/projector-log-transaction/.gradle/8.5/executionHistory/executionHistory.bin",
+    "size": 375036,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  44 00 00 18 10 ff ff ff ff ff ff ff ff 00 00 00  |D...............|\n0010  00 00 00 00 00 00 00 00 15 00 00 00 00 00 00 00  |................|\n0020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0030  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0050  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0060  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0070  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0080  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0090  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00a0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00b0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00d0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00e0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "1efa7857d0cb016c14670ac4b6d9c6945835f3d0": {
+    "blob_hash": "1efa7857d0cb016c14670ac4b6d9c6945835f3d0",
+    "type": "binary",
+    "path": "examples/kotlin/projector-log-customer/.gradle/8.5/executionHistory/executionHistory.bin",
+    "size": 371977,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  44 00 00 18 10 ff ff ff ff ff ff ff ff 00 00 00  |D...............|\n0010  00 00 00 00 00 00 00 00 15 00 00 00 00 00 00 00  |................|\n0020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0030  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0050  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0060  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0070  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0080  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0090  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00a0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00b0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00d0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00e0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "288f7689b96c1a15be4d696b31251bb8c6cd8aa2": {
+    "blob_hash": "288f7689b96c1a15be4d696b31251bb8c6cd8aa2",
+    "type": "binary",
+    "path": "examples/typescript/customer/node_modules/vite/node_modules/@esbuild/linux-x64/bin/esbuild",
+    "size": 9707520,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 60 b5 46 00 00 00 00 00  |..\u003e.....`.F.....|\n0020  40 00 00 00 00 00 00 00 c8 01 00 00 00 00 00 00  |@...............|\n0030  00 00 00 00 40 00 38 00 07 00 40 00 0e 00 03 00  |....@.8...@.....|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  88 01 00 00 00 00 00 00 88 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 04 00 00 00 04 00 00 00  |................|\n0080  9c 0f 00 00 00 00 00 00 9c 0f 40 00 00 00 00 00  |..........@.....|\n0090  9c 0f 40 00 00 00 00 00 64 00 00 00 00 00 00 00  |..@.....d.......|\n00a0  64 00 00 00 00 00 00 00 04 00 00 00 00 00 00 00  |d...............|\n00b0  01 00 00 00 05 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 40 00 00 00 00 00 00 00 40 00 00 00 00 00  |..@.......@.....|\n00d0  68 d7 4f 00 00 00 00 00 68 d7 4f 00 00 00 00 00  |h.O.....h.O.....|\n00e0  00 10 00 00 00 00 00 00 01 00 00 00 04 00 00 00  |................|\n00f0  00 e0 4f 00 00 00 00 00 00 e0 8f 00 00 00 00 00  |..O.............|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "2c11e32282010dc92056b46e993bb1db352756fe": {
+    "blob_hash": "2c11e32282010dc92056b46e993bb1db352756fe",
+    "type": "binary",
+    "path": "examples/typescript/customer/node_modules/@esbuild/linux-x64/bin/esbuild",
+    "size": 11100344,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 e0 1e 48 00 00 00 00 00  |..\u003e.......H.....|\n0020  40 00 00 00 00 00 00 00 90 01 00 00 00 00 00 00  |@...............|\n0030  00 00 00 00 40 00 38 00 06 00 40 00 0f 00 0e 00  |....@.8...@.....|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  50 01 00 00 00 00 00 00 50 01 00 00 00 00 00 00  |P.......P.......|\n0070  00 10 00 00 00 00 00 00 04 00 00 00 04 00 00 00  |................|\n0080  78 0f 00 00 00 00 00 00 78 0f 40 00 00 00 00 00  |x.......x.@.....|\n0090  78 0f 40 00 00 00 00 00 64 00 00 00 00 00 00 00  |x.@.....d.......|\n00a0  64 00 00 00 00 00 00 00 04 00 00 00 00 00 00 00  |d...............|\n00b0  01 00 00 00 05 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 40 00 00 00 00 00 00 00 40 00 00 00 00 00  |..@.......@.....|\n00d0  d1 80 58 00 00 00 00 00 d1 80 58 00 00 00 00 00  |..X.......X.....|\n00e0  00 10 00 00 00 00 00 00 01 00 00 00 04 00 00 00  |................|\n00f0  00 90 58 00 00 00 00 00 00 90 98 00 00 00 00 00  |..X.............|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "2d06833ec4c6e96845269e8e31eecf272eeabf16": {
+    "blob_hash": "2d06833ec4c6e96845269e8e31eecf272eeabf16",
+    "type": "secret",
+    "path": "deploy/tofu/environments/local/terraform.tfstate.1768692602.backup",
+    "size": 8448,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "{\n  \"version\": 4,\n  \"terraform_version\": \"1.14.3\",\n  \"serial\": 26,\n  \"lineage\": \"f2e0ffcb-a8ab-c99d-81ed-b53972ed4dfe\",\n  \"outputs\": {\n    \"database_host\": {\n      \"value\": \"angzarr-db-postgresql.angzarr.svc.cluster.local\",\n      \"type\": \"string\"\n    },\n    \"database_secret\": {\n      \"value\": \"angzarr-db-credentials\",\n      \"type\": \"string\"\n    },\n    \"mesh_enabled\": {\n      \"value\": false,\n      \"type\": \"bool\"\n    },\n    \"messaging_host\": {\n      \"value\": \"angzarr-mq.angzarr.svc.cluster.local\",\n      \"type\n...",
+    "purge": false
+  },
+  "3046317753789bf3498ebcb08727becbf1b52308": {
+    "blob_hash": "3046317753789bf3498ebcb08727becbf1b52308",
+    "type": "binary",
+    "path": "examples/kotlin/projector-receipt/.gradle/8.5/executionHistory/executionHistory.bin",
+    "size": 367673,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "0000  44 00 00 18 10 ff ff ff ff ff ff ff ff 00 00 00  |D...............|\n0010  00 00 00 00 00 00 00 00 15 00 00 00 00 00 00 00  |................|\n0020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0030  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0050  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0060  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0070  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0080  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0090  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00a0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00b0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00d0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00e0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "33761eeacad305dae71d36822612d5edeb61618a": {
+    "blob_hash": "33761eeacad305dae71d36822612d5edeb61618a",
+    "type": "binary",
+    "path": "examples/kotlin/projector-log-customer/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream",
+    "size": 274432,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  00 00 03 41 6e 79 00 13 63 6f 6d 2e 67 6f 6f 67  |...Any..com.goog|\n0010  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 0a 42 79  |le.protobuf...By|\n0020  74 65 53 74 72 69 6e 67 00 13 63 6f 6d 2e 67 6f  |teString..com.go|\n0030  6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 05  |ogle.protobuf...|\n0040  45 6d 70 74 79 00 13 63 6f 6d 2e 67 6f 6f 67 6c  |Empty..com.googl|\n0050  65 2e 70 72 6f 74 6f 62 75 66 00 00 09 54 69 6d  |e.protobuf...Tim|\n0060  65 73 74 61 6d 70 00 13 63 6f 6d 2e 67 6f 6f 67  |estamp..com.goog|\n0070  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 02 69 73  |le.protobuf...is|\n0080  00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f  |.#com.google.pro|\n0090  74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65  |tobuf.AbstractMe|\n00a0  73 73 61 67 65 00 00 09 74 6f 42 75 69 6c 64 65  |ssage...toBuilde|\n00b0  72 00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72  |r.#com.google.pr|\n00c0  6f 74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d  |otobuf.AbstractM|\n00d0  65 73 73 61 67 65 00 00 06 75 6e 70 61 63 6b 00  |essage...unpack.|\n00e0  23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f 74  |#com.google.prot|\n00f0  6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65 73  |obuf.AbstractMes|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "339af1b6e9847cfdab040f17739c38f7ab70806b": {
+    "blob_hash": "339af1b6e9847cfdab040f17739c38f7ab70806b",
+    "type": "secret",
+    "path": "examples/typescript/customer/node_modules/readable-stream/README.md",
+    "size": 5420,
+    "rule": "generic-api-key",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "# readable-stream\n\n**_Node.js core streams for userland_**\n\n[![npm status](https://img.shields.io/npm/v/readable-stream.svg)](https://npm.im/readable-stream)\n[![node](https://img.shields.io/node/v/readable-stream.svg)](https://www.npmjs.org/package/readable-stream)\n[![Node.js Build](https://github.com/nodejs/readable-stream/workflows/Node.js/badge.svg)](https://github.com/nodejs/readable-stream/actions?query=workflow%3ANode.js)\n[![Browsers Build](https://github.com/nodejs/readable-stream/workflows/Browsers/\n...",
+    "purge": false
+  },
+  "4a2cf9ecdb0f9fdbebc56b2923897af05e1e04ca": {
+    "blob_hash": "4a2cf9ecdb0f9fdbebc56b2923897af05e1e04ca",
+    "type": "binary",
+    "path": "examples/kotlin/customer/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream",
+    "size": 274432,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "0000  00 00 03 41 6e 79 00 13 63 6f 6d 2e 67 6f 6f 67  |...Any..com.goog|\n0010  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 0a 42 79  |le.protobuf...By|\n0020  74 65 53 74 72 69 6e 67 00 13 63 6f 6d 2e 67 6f  |teString..com.go|\n0030  6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 05  |ogle.protobuf...|\n0040  45 6d 70 74 79 00 13 63 6f 6d 2e 67 6f 6f 67 6c  |Empty..com.googl|\n0050  65 2e 70 72 6f 74 6f 62 75 66 00 00 07 4d 65 73  |e.protobuf...Mes|\n0060  73 61 67 65 00 13 63 6f 6d 2e 67 6f 6f 67 6c 65  |sage..com.google|\n0070  2e 70 72 6f 74 6f 62 75 66 00 00 09 54 69 6d 65  |.protobuf...Time|\n0080  73 74 61 6d 70 00 13 63 6f 6d 2e 67 6f 6f 67 6c  |stamp..com.googl|\n0090  65 2e 70 72 6f 74 6f 62 75 66 00 00 02 69 73 00  |e.protobuf...is.|\n00a0  23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f 74  |#com.google.prot|\n00b0  6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65 73  |obuf.AbstractMes|\n00c0  73 61 67 65 00 00 03 6c 65 74 00 23 63 6f 6d 2e  |sage...let.#com.|\n00d0  67 6f 6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 2e  |google.protobuf.|\n00e0  41 62 73 74 72 61 63 74 4d 65 73 73 61 67 65 00  |AbstractMessage.|\n00f0  00 09 74 6f 42 75 69 6c 64 65 72 00 23 63 6f 6d  |..toBuilder.#com|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "4b266a9a3982f1bd49a856d5ef18a7ded5524297": {
+    "blob_hash": "4b266a9a3982f1bd49a856d5ef18a7ded5524297",
+    "type": "binary",
+    "path": "examples/kotlin/transaction/.gradle/8.5/executionHistory/executionHistory.bin",
+    "size": 366439,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  44 00 00 18 10 ff ff ff ff ff ff ff ff 00 00 00  |D...............|\n0010  00 00 00 00 00 00 00 00 15 00 00 00 00 00 00 00  |................|\n0020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0030  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0050  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0060  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0070  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0080  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0090  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00a0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00b0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00d0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00e0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "4d774beb1d49140ca0a19ba98e361621f4d16730": {
+    "blob_hash": "4d774beb1d49140ca0a19ba98e361621f4d16730",
+    "type": "secret",
+    "path": "deploy/tofu/environments/local/terraform.tfstate.1768759283.backup",
+    "size": 35728,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "{\"version\":4,\"terraform_version\":\"1.8.8\",\"serial\":98,\"lineage\":\"f2e0ffcb-a8ab-c99d-81ed-b53972ed4dfe\",\"outputs\":{\"eventstoredb_host\":{\"value\":\"angzarr-eventstoredb.angzarr.svc.cluster.local\",\"type\":\"string\"},\"eventstoredb_secret\":{\"value\":\"angzarr-eventstoredb-credentials\",\"type\":\"string\"},\"mesh_enabled\":{\"value\":false,\"type\":\"bool\"},\"messaging_host\":{\"value\":\"angzarr-mq-rabbitmq.angzarr.svc.cluster.local\",\"type\":\"string\"},\"messaging_secret\":{\"value\":\"angzarr-mq-credentials\",\"type\":\"string\"},\"mongodb_host\":\n...",
+    "purge": false
+  },
+  "4e8924b16a44845b99ec2ffc9821d3c9728c12dc": {
+    "blob_hash": "4e8924b16a44845b99ec2ffc9821d3c9728c12dc",
+    "type": "binary",
+    "path": "examples/go/saga-loyalty/saga-loyalty",
+    "size": 16164716,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 dd 47 00 00 00 00 00  |..\u003e..... .G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "4ed8065b839a1a9ab62e83e5bc8cbe74dfb8af75": {
+    "blob_hash": "4ed8065b839a1a9ab62e83e5bc8cbe74dfb8af75",
+    "type": "binary",
+    "path": "examples/python/data/player.db-wal",
+    "size": 135992,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "0000  37 7f 06 82 00 2d e2 18 00 00 10 00 00 00 00 00  |7....-..........|\n0010  67 0e 16 32 d0 85 82 da 06 fd 11 7a 99 67 6e ef  |g..2.......z.gn.|\n0020  00 00 00 01 00 00 00 00 67 0e 16 32 d0 85 82 da  |........g..2....|\n0030  bd 55 17 e7 9b 2c 2c b7 53 51 4c 69 74 65 20 66  |.U...,,.SQLite f|\n0040  6f 72 6d 61 74 20 33 00 10 00 02 02 00 40 20 20  |ormat 3......@  |\n0050  00 00 00 02 00 00 00 03 00 00 00 00 00 00 00 00  |................|\n0060  00 00 00 01 00 00 00 04 00 00 00 00 00 00 00 00  |................|\n0070  00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0080  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0090  00 00 00 00 00 00 00 02 00 2e 7a 70 0d 0f f8 00  |..........zp....|\n00a0  02 0e 8b 00 0e 8b 0f b7 00 00 00 00 00 00 00 00  |................|\n00b0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00d0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00e0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "580bd81452d390312352239488da2b7a0d85f29a": {
+    "blob_hash": "580bd81452d390312352239488da2b7a0d85f29a",
+    "type": "binary",
+    "path": "proto/angzarr.bin",
+    "size": 199817,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "885d311e62454917c7779950f0a81f9bcadb6e80"
+    ],
+    "preview": "0000  0a cc 2e 0a 19 67 6f 6f 67 6c 65 2f 70 72 6f 74  |.....google/prot|\n0010  6f 62 75 66 2f 61 6e 79 2e 70 72 6f 74 6f 12 0f  |obuf/any.proto..|\n0020  67 6f 6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 22  |google.protobuf\"|\n0030  36 0a 03 41 6e 79 12 19 0a 08 74 79 70 65 5f 75  |6..Any....type_u|\n0040  72 6c 18 01 20 01 28 09 52 07 74 79 70 65 55 72  |rl.. .(.R.typeUr|\n0050  6c 12 14 0a 05 76 61 6c 75 65 18 02 20 01 28 0c  |l....value.. .(.|\n0060  52 05 76 61 6c 75 65 42 76 0a 13 63 6f 6d 2e 67  |R.valueBv..com.g|\n0070  6f 6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 42 08  |oogle.protobufB.|\n0080  41 6e 79 50 72 6f 74 6f 50 01 5a 2c 67 6f 6f 67  |AnyProtoP.Z,goog|\n0090  6c 65 2e 67 6f 6c 61 6e 67 2e 6f 72 67 2f 70 72  |le.golang.org/pr|\n00a0  6f 74 6f 62 75 66 2f 74 79 70 65 73 2f 6b 6e 6f  |otobuf/types/kno|\n00b0  77 6e 2f 61 6e 79 70 62 a2 02 03 47 50 42 aa 02  |wn/anypb...GPB..|\n00c0  1e 47 6f 6f 67 6c 65 2e 50 72 6f 74 6f 62 75 66  |.Google.Protobuf|\n00d0  2e 57 65 6c 6c 4b 6e 6f 77 6e 54 79 70 65 73 4a  |.WellKnownTypesJ|\n00e0  dd 2c 0a 07 12 05 1e 00 a1 01 01 0a cc 0c 0a 01  |.,..............|\n00f0  0c 12 03 1e 00 12 32 c1 0c 20 50 72 6f 74 6f 63  |......2.. Protoc|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "59aae89c3b4a7f30f4bd96338978611f46b7b777": {
+    "blob_hash": "59aae89c3b4a7f30f4bd96338978611f46b7b777",
+    "type": "binary",
+    "path": "examples/kotlin/projector-log-transaction/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream",
+    "size": 274432,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  00 00 03 41 6e 79 00 13 63 6f 6d 2e 67 6f 6f 67  |...Any..com.goog|\n0010  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 0a 42 79  |le.protobuf...By|\n0020  74 65 53 74 72 69 6e 67 00 13 63 6f 6d 2e 67 6f  |teString..com.go|\n0030  6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 05  |ogle.protobuf...|\n0040  45 6d 70 74 79 00 13 63 6f 6d 2e 67 6f 6f 67 6c  |Empty..com.googl|\n0050  65 2e 70 72 6f 74 6f 62 75 66 00 00 09 54 69 6d  |e.protobuf...Tim|\n0060  65 73 74 61 6d 70 00 13 63 6f 6d 2e 67 6f 6f 67  |estamp..com.goog|\n0070  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 02 69 73  |le.protobuf...is|\n0080  00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f  |.#com.google.pro|\n0090  74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65  |tobuf.AbstractMe|\n00a0  73 73 61 67 65 00 00 09 74 6f 42 75 69 6c 64 65  |ssage...toBuilde|\n00b0  72 00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72  |r.#com.google.pr|\n00c0  6f 74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d  |otobuf.AbstractM|\n00d0  65 73 73 61 67 65 00 00 06 75 6e 70 61 63 6b 00  |essage...unpack.|\n00e0  23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f 74  |#com.google.prot|\n00f0  6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65 73  |obuf.AbstractMes|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "5ac45819d93f6be30e68f08fa490709b667462e5": {
+    "blob_hash": "5ac45819d93f6be30e68f08fa490709b667462e5",
+    "type": "secret",
+    "path": "examples/typescript/customer/node_modules/@types/node/https.d.ts",
+    "size": 25837,
+    "rule": "generic-api-key",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "/**\n * HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a\n * separate module.\n * @see [source](https://github.com/nodejs/node/blob/v20.13.1/lib/https.js)\n */\ndeclare module \"https\" {\n    import { NonSharedBuffer } from \"node:buffer\";\n    import { Duplex } from \"node:stream\";\n    import * as tls from \"node:tls\";\n    import * as http from \"node:http\";\n    import { URL } from \"node:url\";\n    interface ServerOptions\u003c\n        Request extends typeof http.IncomingMessage = typeof http.Inc\n...",
+    "purge": false
+  },
+  "5b68d207dfa847f8b4cdc3641ad2cc81dba79ad0": {
+    "blob_hash": "5b68d207dfa847f8b4cdc3641ad2cc81dba79ad0",
+    "type": "secret",
+    "path": "examples/typescript/customer/node_modules/@js-sdsl/ordered-map/README.md",
+    "size": 16636,
+    "rule": "generic-api-key",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "\u003cp align=\"center\"\u003e\n  \u003ca href=\"https://js-sdsl.org/\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\n    \u003cimg src=\"https://js-sdsl.org/assets/image/logo/logo-removebg.png\" alt=\"js-sdsl logo\" width=\"120\" /\u003e\n  \u003c/a\u003e\n\u003c/p\u003e\n\n\u003ch3\u003e\u003cp align=\"center\"\u003eA javascript standard data structure library which benchmark against C++ STL\u003c/p\u003e\u003c/h3\u003e\n\n\u003cp align=\"center\"\u003e\n  \u003ca href=\"https://www.npmjs.com/package/js-sdsl\"\u003e\u003cimg src=\"https://img.shields.io/npm/v/js-sdsl.svg\" alt=\"NPM Version\" /\u003e\u003c/a\u003e\n  \u003ca href=\"https://github.com/js-sdsl/js-sds\n...",
+    "purge": false
+  },
+  "5c026e1a8c56c6d5a87e5b128995b8dbee8a9ce5": {
+    "blob_hash": "5c026e1a8c56c6d5a87e5b128995b8dbee8a9ce5",
+    "type": "binary",
+    "path": "examples/typescript/customer/node_modules/@rollup/rollup-linux-x64-gnu/rollup.linux-x64-gnu.node",
+    "size": 2026648,
+    "mime_type": "application/x-sharedlib",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  03 00 3e 00 01 00 00 00 e0 f1 00 00 00 00 00 00  |..\u003e.............|\n0020  40 00 00 00 00 00 00 00 98 e4 1e 00 00 00 00 00  |@...............|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 20 00 1f 00  |....@.8...@. ...|\n0040  01 00 00 00 04 00 00 00 00 00 00 00 00 00 00 00  |................|\n0050  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0060  a8 ef 00 00 00 00 00 00 a8 ef 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n0080  00 f0 00 00 00 00 00 00 00 f0 00 00 00 00 00 00  |................|\n0090  00 f0 00 00 00 00 00 00 e2 93 17 00 00 00 00 00  |................|\n00a0  e2 93 17 00 00 00 00 00 00 10 00 00 00 00 00 00  |................|\n00b0  01 00 00 00 04 00 00 00 00 90 18 00 00 00 00 00  |................|\n00c0  00 90 18 00 00 00 00 00 00 90 18 00 00 00 00 00  |................|\n00d0  38 85 05 00 00 00 00 00 38 85 05 00 00 00 00 00  |8.......8.......|\n00e0  00 10 00 00 00 00 00 00 01 00 00 00 06 00 00 00  |................|\n00f0  68 15 1e 00 00 00 00 00 68 25 1e 00 00 00 00 00  |h.......h%......|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "675eccc47935b089632a8a3d725f069954261c96": {
+    "blob_hash": "675eccc47935b089632a8a3d725f069954261c96",
+    "type": "binary",
+    "path": "examples/go/customer/customer",
+    "size": 16169218,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 dd 47 00 00 00 00 00  |..\u003e..... .G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "697b102a7987ae3871946f109d8684301e210477": {
+    "blob_hash": "697b102a7987ae3871946f109d8684301e210477",
+    "type": "secret",
+    "path": "deploy/tofu/environments/local/terraform.tfstate.1768693965.backup",
+    "size": 26723,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "{\n  \"version\": 4,\n  \"terraform_version\": \"1.14.3\",\n  \"serial\": 46,\n  \"lineage\": \"f2e0ffcb-a8ab-c99d-81ed-b53972ed4dfe\",\n  \"outputs\": {\n    \"database_host\": {\n      \"value\": \"angzarr-db-postgresql.angzarr.svc.cluster.local\",\n      \"type\": \"string\"\n    },\n    \"database_secret\": {\n      \"value\": \"angzarr-db-credentials\",\n      \"type\": \"string\"\n    },\n    \"mesh_enabled\": {\n      \"value\": false,\n      \"type\": \"bool\"\n    },\n    \"messaging_host\": {\n      \"value\": \"angzarr-mq.angzarr.svc.cluster.local\",\n      \"type\n...",
+    "purge": false
+  },
+  "6f0ce2f10e3a73b2c37d76f58b6a6ce142388e9f": {
+    "blob_hash": "6f0ce2f10e3a73b2c37d76f58b6a6ce142388e9f",
+    "type": "secret",
+    "path": "deploy/tofu/environments/local/terraform.tfstate.1768692493.backup",
+    "size": 16789,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "{\n  \"version\": 4,\n  \"terraform_version\": \"1.14.3\",\n  \"serial\": 10,\n  \"lineage\": \"f2e0ffcb-a8ab-c99d-81ed-b53972ed4dfe\",\n  \"outputs\": {\n    \"database_host\": {\n      \"value\": \"angzarr-db-postgresql.angzarr.svc.cluster.local\",\n      \"type\": \"string\"\n    },\n    \"database_secret\": {\n      \"value\": \"angzarr-db-credentials\",\n      \"type\": \"string\"\n    },\n    \"mesh_enabled\": {\n      \"value\": false,\n      \"type\": \"bool\"\n    },\n    \"messaging_host\": {\n      \"value\": \"angzarr-mq.angzarr.svc.cluster.local\",\n      \"type\n...",
+    "purge": false
+  },
+  "72a59a66a1dd7a5d0401dfd877519f03be9b2662": {
+    "blob_hash": "72a59a66a1dd7a5d0401dfd877519f03be9b2662",
+    "type": "secret",
+    "path": "src/payload_store/s3.rs",
+    "size": 10525,
+    "rule": "generic-api-key",
+    "commits": [
+      "462a4de2f9409b71d81eebe9d11b7c4009bfee1b"
+    ],
+    "preview": "//! Amazon S3 payload store.\n//!\n//! Stores payloads as objects in an S3 bucket:\n//! ```text\n//! s3://{bucket}/{prefix}/{hash[0:2]}/{hash}\n//! ```\n\nuse std::time::{Duration, SystemTime};\n\nuse async_trait::async_trait;\nuse aws_sdk_s3::operation::get_object::GetObjectError;\nuse aws_sdk_s3::primitives::ByteStream;\nuse aws_sdk_s3::Client;\nuse prost_types::Timestamp;\nuse tracing::{debug, warn};\n\nuse super::{compute_hash, hash_to_hex, PayloadStore, PayloadStoreError, Result};\nuse crate::proto::{PayloadReference, \n...",
+    "purge": false
+  },
+  "79a8a51c2d085802564c5fd5c4dd823d6ff396c5": {
+    "blob_hash": "79a8a51c2d085802564c5fd5c4dd823d6ff396c5",
+    "type": "binary",
+    "path": "deploy/k8s/helm/operators/charts/strimzi-kafka-operator-helm-3-chart-0.50.1.tgz",
+    "size": 174167,
+    "mime_type": "application/gzip",
+    "commits": [
+      "a73b3c43101fcffd6d9b92e324a0f807e8e1a7be"
+    ],
+    "preview": "0000  1f 8b 08 14 00 00 00 00 00 ff 29 00 2b 61 48 52  |..........).+aHR|\n0010  30 63 48 4d 36 4c 79 39 35 62 33 56 30 64 53 35  |0cHM6Ly95b3V0dS5|\n0020  69 5a 53 39 36 4f 56 56 36 4d 57 6c 6a 61 6e 64  |iZS96OVV6MWljand|\n0030  79 54 51 6f 3d 48 65 6c 6d 00 ec bd e9 76 1b 37  |yTQo=Helm....v.7|\n0040  b6 28 dc bf f9 14 68 b9 7b b5 e5 98 d4 e0 21 dd  |.(....h.{.....!.|\n0050  5a 2b 5f 5f 59 92 1d dd 68 5a 92 9c ce b9 6e 5f  |Z+__Y...hZ....n_|\n0060  1b aa da 24 11 55 01 d5 00 8a 12 13 e7 3e d2 79  |...$.U.......\u003e.y|\n0070  88 f3 64 df c2 50 13 59 64 a1 8a a4 06 bb f0 23  |..d..P.Yd......#|\n0080  b1 8a 18 36 36 f6 0c 60 43 48 4e c2 df 48 f7 1a  |...66..`CHN..H..|\n0090  f7 af 71 97 45 c0 b1 64 7c 63 6f 88 b9 ec 8d 71  |..q.E..d|co....q|\n00a0  18 fc 69 f1 b2 b9 b9 b9 f9 fa e5 4b fd ff cd cd  |..i........K....|\n00b0  cd c9 ff 6f 6d be da fe d3 d6 ab ad 97 af 5e 6e  |...om.........^n|\n00c0  bf fe fe f5 cb 3f 6d 6e bd 7a bd b5 fd 27 b4 b9  |.....?mn.z...'..|\n00d0  84 b1 2b 4b 2c 24 e6 7f da 5c 78 ac c9 c9 3d 92  |..+K,$...\\x...=.|\n00e0  82 23 f2 33 70 41 18 dd 41 a3 ed 0e 8e a2 f4 cf  |.#.3pA..A.......|\n00f0  cd de ab cd de 56 c7 07 e1 71 12 49 fd ed 6f 17  |.....V...q.I..o.|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "7b0668569d58cda8dc5ddd3be9ef93f9195e4d98": {
+    "blob_hash": "7b0668569d58cda8dc5ddd3be9ef93f9195e4d98",
+    "type": "binary",
+    "path": "examples/kotlin/projector-receipt/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream",
+    "size": 274432,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "0000  00 00 03 41 6e 79 00 13 63 6f 6d 2e 67 6f 6f 67  |...Any..com.goog|\n0010  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 0a 42 79  |le.protobuf...By|\n0020  74 65 53 74 72 69 6e 67 00 13 63 6f 6d 2e 67 6f  |teString..com.go|\n0030  6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 05  |ogle.protobuf...|\n0040  45 6d 70 74 79 00 13 63 6f 6d 2e 67 6f 6f 67 6c  |Empty..com.googl|\n0050  65 2e 70 72 6f 74 6f 62 75 66 00 00 09 54 69 6d  |e.protobuf...Tim|\n0060  65 73 74 61 6d 70 00 13 63 6f 6d 2e 67 6f 6f 67  |estamp..com.goog|\n0070  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 02 69 73  |le.protobuf...is|\n0080  00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f  |.#com.google.pro|\n0090  74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65  |tobuf.AbstractMe|\n00a0  73 73 61 67 65 00 00 09 74 6f 42 75 69 6c 64 65  |ssage...toBuilde|\n00b0  72 00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72  |r.#com.google.pr|\n00c0  6f 74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d  |otobuf.AbstractM|\n00d0  65 73 73 61 67 65 00 00 06 75 6e 70 61 63 6b 00  |essage...unpack.|\n00e0  23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f 74  |#com.google.prot|\n00f0  6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65 73  |obuf.AbstractMes|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "7ec1deac2e1d10d098ecc48ef06293f05e6ac501": {
+    "blob_hash": "7ec1deac2e1d10d098ecc48ef06293f05e6ac501",
+    "type": "secret",
+    "path": "deploy/helm/angzarr/templates/deployment.yaml",
+    "size": 25996,
+    "rule": "curl-auth-user",
+    "commits": [
+      "e6f654b78ef73eeaa8e5f86e6fc80659f7496da0"
+    ],
+    "preview": "{{- /* Generate deployments for each application type with angzarr as sidecar */}}\n\n{{- /* Business logic deployments */}}\n{{- range .Values.applications.business }}\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ include \"angzarr.fullname\" $ }}-{{ .name }}\n  labels:\n    {{- include \"angzarr.labels\" $ | nindent 4 }}\n    app.kubernetes.io/component: business\n    angzarr.io/domain: {{ .domain }}\n  {{- if $.Values.reloader.enabled }}\n  annotations:\n    reloader.stakater.com/auto: \"true\"\n  {{- end\n...",
+    "purge": false
+  },
+  "7ed9699e97523e99b064c1a729dc2a5d04ca4907": {
+    "blob_hash": "7ed9699e97523e99b064c1a729dc2a5d04ca4907",
+    "type": "secret",
+    "path": "src/payload_store/s3.test.rs",
+    "size": 1903,
+    "rule": "generic-api-key",
+    "commits": [
+      "a73b3c43101fcffd6d9b92e324a0f807e8e1a7be"
+    ],
+    "preview": "//! Tests for S3 payload store.\n//!\n//! S3 payload store uses content-addressable storage in S3 buckets:\n//! - Object key: {prefix}/{hash[0:2]}/{hash}\n//! - URI format: s3://{bucket}/{key}\n//!\n//! Why this matters: S3 is the most widely used object storage. The\n//! hash-based key structure avoids hot partitions (S3 distributes objects\n//! based on key prefix).\n//!\n//! Key behaviors verified:\n//! - Object key uses hash-based directory sharding\n//! - Prefix is correctly prepended when configured\n//! - URI for\n...",
+    "purge": false
+  },
+  "91aa63c3a9bca25cb62752e146f26fb73beb1660": {
+    "blob_hash": "91aa63c3a9bca25cb62752e146f26fb73beb1660",
+    "type": "secret",
+    "path": "deploy/tofu/environments/local/terraform.tfstate.1768693618.backup",
+    "size": 23054,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "{\n  \"version\": 4,\n  \"terraform_version\": \"1.14.3\",\n  \"serial\": 39,\n  \"lineage\": \"f2e0ffcb-a8ab-c99d-81ed-b53972ed4dfe\",\n  \"outputs\": {\n    \"database_host\": {\n      \"value\": \"angzarr-db-postgresql.angzarr.svc.cluster.local\",\n      \"type\": \"string\"\n    },\n    \"database_secret\": {\n      \"value\": \"angzarr-db-credentials\",\n      \"type\": \"string\"\n    },\n    \"mesh_enabled\": {\n      \"value\": false,\n      \"type\": \"bool\"\n    },\n    \"messaging_host\": {\n      \"value\": \"angzarr-mq.angzarr.svc.cluster.local\",\n      \"type\n...",
+    "purge": false
+  },
+  "92a1d268349361d6df5aaaebce39a5f421f4a63d": {
+    "blob_hash": "92a1d268349361d6df5aaaebce39a5f421f4a63d",
+    "type": "secret",
+    "path": "deploy/tofu/environments/local/terraform.tfstate.1768692494.backup",
+    "size": 8448,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "{\n  \"version\": 4,\n  \"terraform_version\": \"1.14.3\",\n  \"serial\": 12,\n  \"lineage\": \"f2e0ffcb-a8ab-c99d-81ed-b53972ed4dfe\",\n  \"outputs\": {\n    \"database_host\": {\n      \"value\": \"angzarr-db-postgresql.angzarr.svc.cluster.local\",\n      \"type\": \"string\"\n    },\n    \"database_secret\": {\n      \"value\": \"angzarr-db-credentials\",\n      \"type\": \"string\"\n    },\n    \"mesh_enabled\": {\n      \"value\": false,\n      \"type\": \"bool\"\n    },\n    \"messaging_host\": {\n      \"value\": \"angzarr-mq.angzarr.svc.cluster.local\",\n      \"type\n...",
+    "purge": false
+  },
+  "a10ef17e8253ca4ef396ed494b55bcd44a0f6f94": {
+    "blob_hash": "a10ef17e8253ca4ef396ed494b55bcd44a0f6f94",
+    "type": "secret",
+    "path": "examples/typescript/customer/node_modules/@js-sdsl/ordered-map/README.zh-CN.md",
+    "size": 16634,
+    "rule": "generic-api-key",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "\u003cp align=\"center\"\u003e\n  \u003ca href=\"https://js-sdsl.org/\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\n    \u003cimg src=\"https://js-sdsl.org/assets/image/logo/logo-removebg.png\" alt=\"js-sdsl logo\" width=\"120\" /\u003e\n  \u003c/a\u003e\n\u003c/p\u003e\n\n\u003ch3\u003e\u003cp align=\"center\"\u003e一款参考 C++ STL 实现的 JavaScript 标准数据结构库\u003c/p\u003e\u003c/h3\u003e\n\n\u003cp align=\"center\"\u003e\n  \u003ca href=\"https://www.npmjs.com/package/js-sdsl\"\u003e\u003cimg src=\"https://img.shields.io/npm/v/js-sdsl.svg\" alt=\"NPM Version\" /\u003e\u003c/a\u003e\n  \u003ca href=\"https://github.com/js-sdsl/js-sdsl/actions/wor\n...",
+    "purge": false
+  },
+  "a246df7aed71b94609557d9d3e6288ba195310f0": {
+    "blob_hash": "a246df7aed71b94609557d9d3e6288ba195310f0",
+    "type": "secret",
+    "path": "deploy/helm/angzarr/templates/deployment.yaml",
+    "size": 25609,
+    "rule": "curl-auth-user",
+    "commits": [
+      "43042ac451e776abcf701e298c64d5f4bdf38c49"
+    ],
+    "preview": "{{- /* Generate deployments for each application type with angzarr as sidecar */}}\n\n{{- /* Business logic deployments */}}\n{{- range .Values.applications.business }}\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ include \"angzarr.fullname\" $ }}-{{ .name }}\n  labels:\n    {{- include \"angzarr.labels\" $ | nindent 4 }}\n    app.kubernetes.io/component: aggregate\n    angzarr.io/domain: {{ .domain }}\n  {{- if $.Values.reloader.enabled }}\n  annotations:\n    reloader.stakater.com/auto: \"true\"\n  {{- en\n...",
+    "purge": false
+  },
+  "a250e6a4fb0b9944d42101508fa631af88149abd": {
+    "blob_hash": "a250e6a4fb0b9944d42101508fa631af88149abd",
+    "type": "binary",
+    "path": "node_modules/lefthook-linux-x64/bin/lefthook",
+    "size": 14627000,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "97413d119515c6833e35e9b305a8c72b660d0ef7"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 4a 48 00 00 00 00 00  |..\u003e..... JH.....|\n0020  40 00 00 00 00 00 00 00 90 01 00 00 00 00 00 00  |@...............|\n0030  00 00 00 00 40 00 38 00 06 00 40 00 10 00 0f 00  |....@.8...@.....|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  50 01 00 00 00 00 00 00 50 01 00 00 00 00 00 00  |P.......P.......|\n0070  00 10 00 00 00 00 00 00 04 00 00 00 04 00 00 00  |................|\n0080  78 0f 00 00 00 00 00 00 78 0f 40 00 00 00 00 00  |x.......x.@.....|\n0090  78 0f 40 00 00 00 00 00 64 00 00 00 00 00 00 00  |x.@.....d.......|\n00a0  64 00 00 00 00 00 00 00 04 00 00 00 00 00 00 00  |d...............|\n00b0  01 00 00 00 05 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 40 00 00 00 00 00 00 00 40 00 00 00 00 00  |..@.......@.....|\n00d0  b1 9f 6a 00 00 00 00 00 b1 9f 6a 00 00 00 00 00  |..j.......j.....|\n00e0  00 10 00 00 00 00 00 00 01 00 00 00 04 00 00 00  |................|\n00f0  00 a0 6a 00 00 00 00 00 00 a0 aa 00 00 00 00 00  |..j.............|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "a3121a459a299a8516ffed59202f4d4264a6c0e1": {
+    "blob_hash": "a3121a459a299a8516ffed59202f4d4264a6c0e1",
+    "type": "binary",
+    "path": "examples/kotlin/transaction/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream",
+    "size": 274432,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  00 00 03 41 6e 79 00 13 63 6f 6d 2e 67 6f 6f 67  |...Any..com.goog|\n0010  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 0a 42 79  |le.protobuf...By|\n0020  74 65 53 74 72 69 6e 67 00 13 63 6f 6d 2e 67 6f  |teString..com.go|\n0030  6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 05  |ogle.protobuf...|\n0040  45 6d 70 74 79 00 13 63 6f 6d 2e 67 6f 6f 67 6c  |Empty..com.googl|\n0050  65 2e 70 72 6f 74 6f 62 75 66 00 00 07 4d 65 73  |e.protobuf...Mes|\n0060  73 61 67 65 00 13 63 6f 6d 2e 67 6f 6f 67 6c 65  |sage..com.google|\n0070  2e 70 72 6f 74 6f 62 75 66 00 00 09 54 69 6d 65  |.protobuf...Time|\n0080  73 74 61 6d 70 00 13 63 6f 6d 2e 67 6f 6f 67 6c  |stamp..com.googl|\n0090  65 2e 70 72 6f 74 6f 62 75 66 00 00 02 69 73 00  |e.protobuf...is.|\n00a0  23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f 74  |#com.google.prot|\n00b0  6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65 73  |obuf.AbstractMes|\n00c0  73 61 67 65 00 00 09 74 6f 42 75 69 6c 64 65 72  |sage...toBuilder|\n00d0  00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f  |.#com.google.pro|\n00e0  74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65  |tobuf.AbstractMe|\n00f0  73 73 61 67 65 00 00 06 75 6e 70 61 63 6b 00 23  |ssage...unpack.#|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "a4b25c9e83dea26c82f4b88a8991ab7bcd1370a1": {
+    "blob_hash": "a4b25c9e83dea26c82f4b88a8991ab7bcd1370a1",
+    "type": "binary",
+    "path": "deploy/k8s/helm/operators/charts/cloudnative-pg-0.27.1.tgz",
+    "size": 186896,
+    "mime_type": "application/gzip",
+    "commits": [
+      "a73b3c43101fcffd6d9b92e324a0f807e8e1a7be"
+    ],
+    "preview": "0000  1f 8b 08 14 00 00 00 00 00 ff 29 00 2b 61 48 52  |..........).+aHR|\n0010  30 63 48 4d 36 4c 79 39 35 62 33 56 30 64 53 35  |0cHM6Ly95b3V0dS5|\n0020  69 5a 53 39 36 4f 56 56 36 4d 57 6c 6a 61 6e 64  |iZS96OVV6MWljand|\n0030  79 54 51 6f 3d 48 65 6c 6d 00 ec bd ed 76 1b b7  |yTQo=Helm....v..|\n0040  92 28 3a bf f9 14 38 f2 cc 92 b4 0f 49 49 76 ec  |.(:...8.....IIv.|\n0050  ec ad d9 99 75 19 49 71 34 91 25 8d 28 c7 3b 77  |....u.Iq4.%.(.;w|\n0060  d6 5c 09 ec 06 49 44 dd 40 07 40 4b a2 b3 f3 40  |.\\...ID.@.@K...@|\n0070  e7 35 ce 93 dd 85 02 d0 5f ec 2f 52 b4 ec 24 dd  |.5......_./R..$.|\n0080  3f 12 8b 8d 2e 00 85 42 a1 be 50 e5 05 3c f6 19  |?......B..P..\u003c..|\n0090  56 f4 9e 0c a2 d9 de d1 1c 0b 35 5c e0 30 f8 97  |V.........5\\.0..|\n00a0  cd 3d fb fb fb fb 6f be fa 0a fe bf bf bf 5f fc  |.=....o......._.|\n00b0  ff c1 c1 eb d7 ff 72 f0 fa e0 ab 83 83 af f6 5f  |......r........_|\n00c0  be 79 f9 2f fb fa 9f fb ff 82 f6 37 38 86 ca 27  |.y./.......78..'|\n00d0  96 0a 8b 7f d9 7f 72 5f c5 c9 fd 4e 1e 1c d1 1f  |......r_...N....|\n00e0  89 90 94 b3 43 74 ff b2 87 a3 28 f9 f3 60 f8 f2  |....Ct....(..`..|\n00f0  af c3 83 9e 4f 22 c2 7c c2 3c 4a e4 61 6f 80 70  |....O\".|.\u003cJ.ao.p|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "bd2b8464bd83bd420279d25b9126c4995d9acdea": {
+    "blob_hash": "bd2b8464bd83bd420279d25b9126c4995d9acdea",
+    "type": "binary",
+    "path": "examples/kotlin/customer/.gradle/8.5/executionHistory/executionHistory.bin",
+    "size": 359125,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "0000  44 00 00 18 10 ff ff ff ff ff ff ff ff 00 00 00  |D...............|\n0010  00 00 00 00 00 00 00 00 15 00 00 00 00 00 00 00  |................|\n0020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0030  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0050  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0060  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0070  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0080  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0090  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00a0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00b0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00d0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00e0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "ca736c467d703566d94d4fbcc8720ccbae0883eb": {
+    "blob_hash": "ca736c467d703566d94d4fbcc8720ccbae0883eb",
+    "type": "binary",
+    "path": "examples/go/projector-log-transaction/projector-log-transaction",
+    "size": 16183864,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 dd 47 00 00 00 00 00  |..\u003e..... .G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "cab60b5519fa7d6b245d147be223b09377a83874": {
+    "blob_hash": "cab60b5519fa7d6b245d147be223b09377a83874",
+    "type": "binary",
+    "path": "examples/typescript/customer/node_modules/@rollup/rollup-linux-x64-musl/rollup.linux-x64-musl.node",
+    "size": 2061024,
+    "mime_type": "application/x-sharedlib",
+    "commits": [
+      "e9eb43f4015893f238f35bfd5582519e029e7822"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  03 00 3e 00 01 00 00 00 00 00 00 00 00 00 00 00  |..\u003e.............|\n0020  40 00 00 00 00 00 00 00 60 6c 1f 00 00 00 00 00  |@.......`l......|\n0030  00 00 00 00 40 00 38 00 0a 00 40 00 1a 00 19 00  |....@.8...@.....|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00  |@.......@.......|\n0060  30 02 00 00 00 00 00 00 30 02 00 00 00 00 00 00  |0.......0.......|\n0070  08 00 00 00 00 00 00 00 01 00 00 00 04 00 00 00  |................|\n0080  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0090  00 00 00 00 00 00 00 00 2c d3 06 00 00 00 00 00  |........,.......|\n00a0  2c d3 06 00 00 00 00 00 00 10 00 00 00 00 00 00  |,...............|\n00b0  01 00 00 00 05 00 00 00 30 d3 06 00 00 00 00 00  |........0.......|\n00c0  30 e3 06 00 00 00 00 00 30 e3 06 00 00 00 00 00  |0.......0.......|\n00d0  e0 a3 17 00 00 00 00 00 e0 a3 17 00 00 00 00 00  |................|\n00e0  00 10 00 00 00 00 00 00 01 00 00 00 06 00 00 00  |................|\n00f0  10 77 1e 00 00 00 00 00 10 97 1e 00 00 00 00 00  |.w..............|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "cc5023fb4980fac2f0b70af051b61de6f5a13a8a": {
+    "blob_hash": "cc5023fb4980fac2f0b70af051b61de6f5a13a8a",
+    "type": "binary",
+    "path": "deploy/helm/angzarr/charts/mongodb-16.5.45.tgz",
+    "size": 107224,
+    "mime_type": "application/gzip",
+    "commits": [
+      "43042ac451e776abcf701e298c64d5f4bdf38c49"
+    ],
+    "preview": "0000  1f 8b 08 00 00 00 00 00 00 ff ec bd eb 72 e3 48  |.............r.H|\n0010  92 2e 38 bf f5 14 b1 aa 63 53 ca 5a 91 ba 64 65  |..8.....cS.Z..de|\n0020  55 b7 66 b2 cf aa 24 55 95 ba f3 a2 95 54 59 dd  |U.f...$U.....TY.|\n0030  27 bb ad 00 12 20 89 16 08 b0 71 91 92 3d 1a b3  |'.... ....q..=..|\n0040  f3 06 fb 7f 6d d7 6c 1f 63 9f 67 5e 60 5f 61 fd  |....m.l.c.g^`_a.|\n0050  12 01 04 80 00 01 52 a4 52 64 2a 6c a6 2b 05 06  |......R.Rd*l.+..|\n0060  02 11 5f 78 78 b8 7b 78 b8 8f c3 60 18 3a bd bd  |.._xx.{x...`.:..|\n0070  7f 59 61 d9 df ff 76 ff fb 57 af c4 fe fe fe c1  |.Ya...v..W......|\n0080  f7 af 0e f4 ff aa 22 0e 5e ed bf 3a dc 7f 09 ff  |......\".^..:....|\n0090  7f 28 f6 0f 0e f7 bf fb fe 5f c4 ab 55 76 4a 95  |.(......._..UvJ.|\n00a0  34 4e ec 08 ba 78 00 ff 37 ab 5e d3 ef 6a 20 ea  |4N...x..7.^..j .|\n00b0  bf 4b ed e4 ea ca 58 ce 7f e2 8e 27 be 9d b8 f1  |.K....X....'....|\n00c0  0a 28 61 fe f9 ff 76 ff bb 57 cf f3 ff 18 a5 3a  |.(a...v..W.....:|\n00d0  ff 3d bb 7f 93 4e 96 49 06 f3 cf ff ab 97 2f 0f  |.=...N.I....../.|\n00e0  9f e7 ff 31 4a 75 fe 23 77 e2 7b 7d 3b 76 93 65  |...1Ju.#w.{};v.e|\n00f0  d1 c0 fc f3 ff dd e1 e1 fe f3 fc 3f 46 a9 ce bf  |...........?F...|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "d0a84ccb5c1a14a25793e177efa648756d4a97ba": {
+    "blob_hash": "d0a84ccb5c1a14a25793e177efa648756d4a97ba",
+    "type": "binary",
+    "path": "deploy/helm/observability/charts/loki-6.24.0.tgz",
+    "size": 401307,
+    "mime_type": "application/gzip",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "0000  1f 8b 08 14 00 00 00 00 00 ff 29 00 2b 61 48 52  |..........).+aHR|\n0010  30 63 48 4d 36 4c 79 39 35 62 33 56 30 64 53 35  |0cHM6Ly95b3V0dS5|\n0020  69 5a 53 39 36 4f 56 56 36 4d 57 6c 6a 61 6e 64  |iZS96OVV6MWljand|\n0030  79 54 51 6f 3d 48 65 6c 6d 00 ec bd fb 77 1b 37  |yTQo=Helm....w.7|\n0040  92 30 3a 3f f3 af c0 95 73 3f d9 59 91 a2 e4 47  |.0:?....s?.Y...G|\n0050  3c dc 9d b9 2b 3f 92 e8 ae ed e8 b3 ec 64 f7 ce  |\u003c...+?.......d..|\n0060  cc 91 c0 6e 90 44 d4 6c 74 00 b4 24 c6 e3 ef 6f  |...n.D.lt..$...o|\n0070  bf 07 55 00 1a e8 07 45 52 92 65 67 ec 73 66 22  |..U....ER.eg.sf\"|\n0080  a2 51 85 c2 ab 50 2f 14 32 71 c6 77 9f cf a8 d4  |.Q...P/.2q.w....|\n0090  83 05 9d 67 7f ba 8d 7f c3 e1 70 f8 e4 d1 23 f8  |...g......p...#.|\n00a0  ef 70 38 ac ff 77 ef bb e1 de 9f f6 1e 7d f7 70  |.p8..w.......}.p|\n00b0  f8 e4 c9 fe de a3 27 7f 1a ee ed ef 3d fc ee 4f  |......'.....=..O|\n00c0  64 78 2b d4 d4 fe 95 4a 53 f9 a7 e1 b5 db aa 77  |dx+....JS......w|\n00d0  ee 0b f9 47 0b fe 33 93 8a 8b 7c 44 ce f7 7b b4  |...G..3...|D..{.|\n00e0  28 fc cf 87 83 87 83 fd 5e ca 0a 96 a7 2c 4f 38  |(.......^....,O8|\n00f0  53 a3 5e 9f d0 8c 53 35 22 73 9e 73 d1 23 24 11  |S.^...S5\"s.s.#$.|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "e5f7af6408e766b464b6921e3c8107afaff7a806": {
+    "blob_hash": "e5f7af6408e766b464b6921e3c8107afaff7a806",
+    "type": "binary",
+    "path": "examples/go/transaction/transaction",
+    "size": 16180127,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 dd 47 00 00 00 00 00  |..\u003e..... .G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "e7d292f48ed48aab4191886cc9f2e46e7d3f8487": {
+    "blob_hash": "e7d292f48ed48aab4191886cc9f2e46e7d3f8487",
+    "type": "binary",
+    "path": "client/python/dist/angzarr_client-0.1.4.tar.gz",
+    "size": 159973,
+    "mime_type": "application/gzip",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "0000  1f 8b 08 00 00 11 36 5e 02 ff ec bd 6d 8c a6 59  |......6^....m..Y|\n0010  7a 1e 54 35 d3 d3 3d 5d d3 33 bd f6 da 1e af 37  |z.T5..=].3.....7|\n0020  9b ad 74 84 67 c7 9e 7a 9f f3 fd 31 f6 d8 5e 6f  |..t.g..z...1..^o|\n0030  16 c7 f6 5a de d8 13 84 77 3d ee 3d 9f dd e5 ad  |...Z....w=.=....|\n0040  ae 6a 57 55 cf ce 78 b5 24 1d 47 18 f2 0b 23 f2  |.jWU..x.$.G...#.|\n0050  0f a2 48 10 90 82 e2 88 04 1b 09 11 e1 08 29 11  |..H...........).|\n0060  f9 83 40 11 46 58 08 4b 04 14 09 13 84 84 c1 f9  |..@.FX.K........|\n0070  80 e5 ba de aa ea ae b7 a7 ea ad a7 f6 ad 59 92  |..............Y.|\n0080  cd 73 d4 dd d5 f5 7e 3c cf 79 ee 73 7f 5c d7 39  |.s....~\u003c.y.s.\\.9|\n0090  f7 b9 4f da bd f7 cb 69 7f ff 6e d9 d9 6e bb 87  |..O....i..n..n..|\n00a0  5b 62 26 67 66 98 95 bd 77 db 7e ba d7 d6 ae a4  |[b\u0026gf...w.~.....|\n00b0  09 34 67 cc fc 27 da e2 4f 69 e7 ff 97 da 49 6b  |.4g..'..Oi....Ik|\n00c0  a4 30 7c 5d 6a a5 dc da a6 58 fb 26 b4 47 07 87  |.0|]j....X.\u0026.G..|\n00d0  69 1f 5d 59 fb e7 b3 fd ec 9f f8 dc f6 61 db ec  |i.]Y.........a..|\n00e0  7b fb 0f d2 e1 a6 5e fb c8 da fa fa da 8f 6c 6e  |{.....^.......ln|\n00f0  e2 ad 9b f8 fb f2 a9 8f de c0 df 6b a7 7e 5f 1f  |...........k.~_.|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "ea74c36405a0da08d2849764e82bddd866e4b8e7": {
+    "blob_hash": "ea74c36405a0da08d2849764e82bddd866e4b8e7",
+    "type": "binary",
+    "path": "examples/kotlin/saga-loyalty/.gradle/8.5/executionHistory/executionHistory.bin",
+    "size": 360856,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  44 00 00 18 10 ff ff ff ff ff ff ff ff 00 00 00  |D...............|\n0010  00 00 00 00 00 00 00 00 15 00 00 00 00 00 00 00  |................|\n0020  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0030  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0040  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0050  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0060  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0070  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0080  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n0090  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00a0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00b0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00c0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00d0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00e0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  |................|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "ec70e68a8356a6e365d62f7e16cec92e8dfea708": {
+    "blob_hash": "ec70e68a8356a6e365d62f7e16cec92e8dfea708",
+    "type": "binary",
+    "path": "examples/kotlin/saga-loyalty/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups/lookups.tab.keystream",
+    "size": 274432,
+    "mime_type": "application/octet-stream",
+    "commits": [
+      "b2c8ed68baad614f1d53c9a76cc69982442a2ad9"
+    ],
+    "preview": "0000  00 00 03 41 6e 79 00 13 63 6f 6d 2e 67 6f 6f 67  |...Any..com.goog|\n0010  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 0a 42 79  |le.protobuf...By|\n0020  74 65 53 74 72 69 6e 67 00 13 63 6f 6d 2e 67 6f  |teString..com.go|\n0030  6f 67 6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 05  |ogle.protobuf...|\n0040  45 6d 70 74 79 00 13 63 6f 6d 2e 67 6f 6f 67 6c  |Empty..com.googl|\n0050  65 2e 70 72 6f 74 6f 62 75 66 00 00 09 54 69 6d  |e.protobuf...Tim|\n0060  65 73 74 61 6d 70 00 13 63 6f 6d 2e 67 6f 6f 67  |estamp..com.goog|\n0070  6c 65 2e 70 72 6f 74 6f 62 75 66 00 00 02 69 73  |le.protobuf...is|\n0080  00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f  |.#com.google.pro|\n0090  74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65  |tobuf.AbstractMe|\n00a0  73 73 61 67 65 00 00 09 74 6f 42 75 69 6c 64 65  |ssage...toBuilde|\n00b0  72 00 23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72  |r.#com.google.pr|\n00c0  6f 74 6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d  |otobuf.AbstractM|\n00d0  65 73 73 61 67 65 00 00 06 75 6e 70 61 63 6b 00  |essage...unpack.|\n00e0  23 63 6f 6d 2e 67 6f 6f 67 6c 65 2e 70 72 6f 74  |#com.google.prot|\n00f0  6f 62 75 66 2e 41 62 73 74 72 61 63 74 4d 65 73  |obuf.AbstractMes|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "ef23f19342660e1565f7f45d902abc971f1a0a9c": {
+    "blob_hash": "ef23f19342660e1565f7f45d902abc971f1a0a9c",
+    "type": "secret",
+    "path": "src/payload_store/s3.rs",
+    "size": 9650,
+    "rule": "generic-api-key",
+    "commits": [
+      "55b3fe6ad8274ea3c490e70b6bc3f0f1a24066fc"
+    ],
+    "preview": "//! Amazon S3 payload store.\n//!\n//! Stores payloads as objects in an S3 bucket:\n//! ```text\n//! s3://{bucket}/{prefix}/{hash[0:2]}/{hash}\n//! ```\n\nuse std::time::{Duration, SystemTime};\n\nuse async_trait::async_trait;\nuse aws_sdk_s3::primitives::ByteStream;\nuse aws_sdk_s3::Client;\nuse prost_types::Timestamp;\nuse tracing::{debug, warn};\n\nuse super::{compute_hash, hash_to_hex, PayloadStore, PayloadStoreError, Result};\nuse crate::proto::{PayloadReference, PayloadStorageType};\n\n/// S3-based payload store.\n///\n/\n...",
+    "purge": false
+  },
+  "f36037393ea1f94f0da19fcfaa490c94e3fbcc93": {
+    "blob_hash": "f36037393ea1f94f0da19fcfaa490c94e3fbcc93",
+    "type": "binary",
+    "path": "examples/go/projector-receipt/projector-receipt",
+    "size": 16182244,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "f87f87a7f86eb415a9d573124ccb00f95b0e79dc"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 dd 47 00 00 00 00 00  |..\u003e..... .G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  },
+  "f662f8ae24a084a71e6a5945ed90c07e02b7d678": {
+    "blob_hash": "f662f8ae24a084a71e6a5945ed90c07e02b7d678",
+    "type": "binary",
+    "path": "examples/go/customer/customer",
+    "size": 16269088,
+    "mime_type": "application/x-executable",
+    "commits": [
+      "0d4d6f8e4af7bac7f937817d0ec5bd9af9097bdd"
+    ],
+    "preview": "0000  7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00  |.ELF............|\n0010  02 00 3e 00 01 00 00 00 20 dd 47 00 00 00 00 00  |..\u003e..... .G.....|\n0020  40 00 00 00 00 00 00 00 38 02 00 00 00 00 00 00  |@.......8.......|\n0030  00 00 00 00 40 00 38 00 09 00 40 00 26 00 23 00  |....@.8...@.\u0026.#.|\n0040  06 00 00 00 04 00 00 00 40 00 00 00 00 00 00 00  |........@.......|\n0050  40 00 40 00 00 00 00 00 40 00 40 00 00 00 00 00  |@.@.....@.@.....|\n0060  f8 01 00 00 00 00 00 00 f8 01 00 00 00 00 00 00  |................|\n0070  00 10 00 00 00 00 00 00 03 00 00 00 04 00 00 00  |................|\n0080  e4 0f 00 00 00 00 00 00 e4 0f 40 00 00 00 00 00  |..........@.....|\n0090  e4 0f 40 00 00 00 00 00 1c 00 00 00 00 00 00 00  |..@.............|\n00a0  1c 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  |................|\n00b0  04 00 00 00 04 00 00 00 5c 0f 00 00 00 00 00 00  |........\\.......|\n00c0  5c 0f 40 00 00 00 00 00 5c 0f 40 00 00 00 00 00  |\\.@.....\\.@.....|\n00d0  64 00 00 00 00 00 00 00 64 00 00 00 00 00 00 00  |d.......d.......|\n00e0  04 00 00 00 00 00 00 00 01 00 00 00 05 00 00 00  |................|\n00f0  00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00  |..........@.....|\n",
+    "is_binary": true,
+    "purge": false
+  }
+}

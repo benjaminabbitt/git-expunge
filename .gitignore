@@ -1,0 +1,39 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test fixtures (generated repos)
+tests/integration/fixtures/repos/*
+!tests/integration/fixtures/repos/.gitkeep
+
+# Manifests (generated during testing)
+git-expunge-findings.json
+manifest.md
+
+# Backup archives
+*.tar.zst
+*.tar.gz
+*.7z

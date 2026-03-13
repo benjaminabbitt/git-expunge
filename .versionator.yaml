@@ -1,0 +1,26 @@
+# Versionator Configuration
+prefix: v
+prerelease:
+    template: ""
+metadata:
+    template: ""
+    git:
+        hashLength: 12
+release:
+    createBranch: true
+    branchPrefix: release/
+branchVersioning:
+    enabled: false
+    mainBranches:
+        - main
+        - master
+        - release/*
+    prereleaseTemplate: '{{EscapedBranchName}}-{{CommitsSinceTag}}'
+    mode: replace
+mode:
+    type: release
+    continuousDelivery:
+        prereleaseTemplate: build-{{CommitsSinceTag}}
+        metadataTemplate: '{{ShortHash}}'
+logging:
+    output: quiet

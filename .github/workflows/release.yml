@@ -1,0 +1,172 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract tag version
+      id: tag_version
+      run: |
+        TAG=${GITHUB_REF#refs/tags/}
+        VERSION=${TAG#v}
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Processing release for tag: $TAG (version: $VERSION)"
+
+    - name: Build and package release
+      uses: devcontainers/ci@v0.3
+      with:
+        imageName: ghcr.io/${{ github.repository }}/release-build
+        cacheFrom: ghcr.io/benjaminabbitt/versionator/devcontainer
+        runCmd: |
+          # Initialize project
+          just init
+
+          # Build for all platforms (static binaries with CGO_ENABLED=0)
+          just build-all
+
+          # Create release directory
+          mkdir -p release
+
+          # Create tar.gz archives for Unix platforms (preserves +x bit)
+          for binary in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 freebsd-amd64; do
+            chmod +x bin/git-expunge-${binary}
+            tar -czvf release/git-expunge-${binary}.tar.gz -C bin git-expunge-${binary}
+          done
+
+          # Create zip archives for Windows
+          for binary in windows-amd64 windows-arm64; do
+            (cd bin && zip ../release/git-expunge-${binary}.zip git-expunge-${binary}.exe)
+          done
+
+          # Create checksums
+          cd release
+          sha256sum * > checksums.txt
+          ls -la
+
+    - name: Submit to VirusTotal
+      id: virustotal
+      run: |
+        if [ -z "$VIRUSTOTAL_API_KEY" ]; then
+          echo "VIRUSTOTAL_API_KEY not set, skipping VirusTotal submission"
+          echo "VT_RESULTS=_VirusTotal scanning not configured for this release._" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "Submitting binaries to VirusTotal..."
+
+        echo "| Archive | VirusTotal Analysis |" > vt_results.md
+        echo "|---------|---------------------|" >> vt_results.md
+
+        for archive in release/*.tar.gz release/*.zip; do
+          filename=$(basename "$archive")
+          echo "Uploading $filename..."
+
+          response=$(curl -s --request POST \
+            --url 'https://www.virustotal.com/api/v3/files' \
+            --header "x-apikey: $VIRUSTOTAL_API_KEY" \
+            --form "file=@$archive")
+
+          analysis_id=$(echo "$response" | jq -r '.data.id // empty')
+
+          if [ -n "$analysis_id" ]; then
+            vt_url="https://www.virustotal.com/gui/file-analysis/${analysis_id}"
+            echo "| \`$filename\` | [View Analysis]($vt_url) |" >> vt_results.md
+            echo "  -> $vt_url"
+          else
+            echo "| \`$filename\` | Upload failed |" >> vt_results.md
+            echo "  -> Upload failed: $response"
+          fi
+
+          sleep 16
+        done
+
+        {
+          echo "VT_RESULTS<<EOF"
+          cat vt_results.md
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+      env:
+        VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.tag_version.outputs.tag }}
+        name: git-expunge ${{ steps.tag_version.outputs.version }}
+        body: |
+          ## git-expunge ${{ steps.tag_version.outputs.version }}
+
+          Safely remove sensitive data and large files from Git history.
+
+          ### Installation
+
+          #### Linux/macOS/FreeBSD
+          ```bash
+          curl -LO https://github.com/benjaminabbitt/git-expunge/releases/download/${{ steps.tag_version.outputs.tag }}/git-expunge-linux-amd64.tar.gz
+          tar xzf git-expunge-linux-amd64.tar.gz
+          sudo mv git-expunge-linux-amd64 /usr/local/bin/git-expunge
+          ```
+
+          #### Windows
+          ```powershell
+          Invoke-WebRequest -Uri https://github.com/benjaminabbitt/git-expunge/releases/download/${{ steps.tag_version.outputs.tag }}/git-expunge-windows-amd64.zip -OutFile git-expunge.zip
+          Expand-Archive git-expunge.zip -DestinationPath .
+          Move-Item git-expunge-windows-amd64.exe git-expunge.exe
+          ```
+
+          ### Available Archives
+
+          | Platform | Architecture | Archive |
+          |----------|--------------|---------|
+          | Linux | x64 | `git-expunge-linux-amd64.tar.gz` |
+          | Linux | arm64 | `git-expunge-linux-arm64.tar.gz` |
+          | macOS | Intel | `git-expunge-darwin-amd64.tar.gz` |
+          | macOS | Apple Silicon | `git-expunge-darwin-arm64.tar.gz` |
+          | Windows | x64 | `git-expunge-windows-amd64.zip` |
+          | Windows | arm64 | `git-expunge-windows-arm64.zip` |
+          | FreeBSD | x64 | `git-expunge-freebsd-amd64.tar.gz` |
+
+          ### Verification
+
+          All archives are provided with SHA256 checksums in `checksums.txt`.
+          ```bash
+          sha256sum -c checksums.txt --ignore-missing
+          ```
+
+          ### Security Scanning
+
+          ${{ steps.virustotal.outputs.VT_RESULTS }}
+
+        files: |
+          release/*
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
