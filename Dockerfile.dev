@@ -6,8 +6,12 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list 2>/dev/null || true
 RUN apt-get update && apt-get install -y \
     git \
     zstd \
-    upx-ucl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install UPX from GitHub releases
+RUN curl -sL https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz | tar -xJ \
+    && mv upx-4.2.4-amd64_linux/upx /usr/local/bin/ \
+    && rm -rf upx-4.2.4-amd64_linux
 
 # Install just (task runner)
 RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
