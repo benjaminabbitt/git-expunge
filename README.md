@@ -1,5 +1,9 @@
 # git-expunge
 
+[![Build](https://github.com/benjaminabbitt/git-expunge/actions/workflows/build.yml/badge.svg)](https://github.com/benjaminabbitt/git-expunge/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/benjaminabbitt/git-expunge)](https://github.com/benjaminabbitt/git-expunge/releases/latest)
+[![License](https://img.shields.io/github/license/benjaminabbitt/git-expunge)](LICENSE)
+
 > Safely remove sensitive data and large files from Git history
 
 **git-expunge** is a user-friendly tool for removing accidentally committed secrets, API keys, binary files, and other sensitive data from your Git repository history. Unlike other tools, it prioritizes safety with full backup/restore capabilities and provides multiple interfaces for reviewing findings before making any destructive changes.
@@ -24,15 +28,45 @@
 
 ## Installation
 
+### Linux (x64)
+
+```bash
+curl -LO https://github.com/benjaminabbitt/git-expunge/releases/latest/download/git-expunge-linux-amd64.tar.gz
+tar xzf git-expunge-linux-amd64.tar.gz
+sudo mv git-expunge-linux-amd64 /usr/local/bin/git-expunge
+```
+
+### macOS
+
+```bash
+# Apple Silicon
+curl -LO https://github.com/benjaminabbitt/git-expunge/releases/latest/download/git-expunge-darwin-arm64.tar.gz
+tar xzf git-expunge-darwin-arm64.tar.gz
+sudo mv git-expunge-darwin-arm64 /usr/local/bin/git-expunge
+
+# Intel
+curl -LO https://github.com/benjaminabbitt/git-expunge/releases/latest/download/git-expunge-darwin-amd64.tar.gz
+tar xzf git-expunge-darwin-amd64.tar.gz
+sudo mv git-expunge-darwin-amd64 /usr/local/bin/git-expunge
+```
+
+### Windows
+
+```powershell
+Invoke-WebRequest -Uri https://github.com/benjaminabbitt/git-expunge/releases/latest/download/git-expunge-windows-amd64.zip -OutFile git-expunge.zip
+Expand-Archive git-expunge.zip -DestinationPath .
+Move-Item git-expunge-windows-amd64.exe git-expunge.exe
+```
+
 ### From source
 
 ```bash
 go install github.com/benjaminabbitt/git-expunge/cmd/git-expunge@latest
 ```
 
-### From releases
+### All releases
 
-Download the latest release from the [releases page](https://github.com/benjaminabbitt/git-expunge/releases).
+Download from the [releases page](https://github.com/benjaminabbitt/git-expunge/releases) - binaries are statically linked with no runtime dependencies.
 
 ## Quick Start
 
