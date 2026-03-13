@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/go:1.22
+FROM mcr.microsoft.com/devcontainers/go:1.25
 
 # Remove stale yarn repo that has GPG key issues
 RUN rm -f /etc/apt/sources.list.d/yarn.list 2>/dev/null || true
