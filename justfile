@@ -141,6 +141,19 @@ build-all: fix-perms fix-git-dubious-ownership-warning
     echo "Building for FreeBSD amd64..."
     CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build -ldflags="$LDFLAGS" -trimpath -o bin/git-expunge-freebsd-amd64 ./cmd/git-expunge
 
+    # UPX compression (Linux, Windows, FreeBSD - not macOS due to code signing issues)
+    if command -v upx >/dev/null 2>&1; then
+        echo "Compressing binaries with UPX..."
+        upx --best --lzma bin/git-expunge-linux-amd64 || true
+        upx --best --lzma bin/git-expunge-linux-arm64 || true
+        upx --best --lzma bin/git-expunge-windows-amd64.exe || true
+        upx --best --lzma bin/git-expunge-windows-arm64.exe || true
+        upx --best --lzma bin/git-expunge-freebsd-amd64 || true
+        echo "UPX compression completed!"
+    else
+        echo "UPX not found, skipping compression (install with: apt install upx)"
+    fi
+
     echo "All builds completed successfully!"
     ls -lh bin/
 
