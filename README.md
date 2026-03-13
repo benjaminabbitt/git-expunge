@@ -6,6 +6,9 @@
 
 > Safely remove sensitive data and large files from Git history
 
+> [!WARNING]
+> **Pre-release software** - While git-expunge has been successfully used on real repositories, it is still in early development. **Always back up your entire repository before using this tool.** git-expunge creates automatic backups before rewriting history, but an independent backup is strongly recommended. History rewriting is a destructive operation that cannot be undone.
+
 **git-expunge** is a user-friendly tool for removing accidentally committed secrets, API keys, binary files, and other sensitive data from your Git repository history. Unlike other tools, it prioritizes safety with full backup/restore capabilities and provides multiple interfaces for reviewing findings before making any destructive changes.
 
 ## Why git-expunge?
