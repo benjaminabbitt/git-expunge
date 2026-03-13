@@ -6,7 +6,7 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list 2>/dev/null || true
 RUN apt-get update && apt-get install -y \
     git \
     zstd \
-    upx \
+    upx-ucl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install just (task runner)
