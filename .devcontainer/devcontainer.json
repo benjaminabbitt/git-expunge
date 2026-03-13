@@ -21,6 +21,6 @@
       }
     }
   },
-  "postCreateCommand": "go mod download && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest",
+  "postCreateCommand": "go mod download",
   "remoteUser": "vscode"
 }
