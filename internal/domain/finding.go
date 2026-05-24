@@ -1,6 +1,8 @@
 // Package domain contains core domain types for git-expunge.
 package domain
 
+import "fmt"
+
 // FindingType represents the type of finding (binary or secret).
 type FindingType string
 
@@ -75,6 +77,71 @@ func (m Manifest) Add(f *Finding) {
 		return
 	}
 	m[f.BlobHash] = f
+}
+
+// Remove deletes the finding with the given blob hash. Returns true if
+// anything was removed.
+func (m Manifest) Remove(hash string) bool {
+	if _, ok := m[hash]; !ok {
+		return false
+	}
+	delete(m, hash)
+	return true
+}
+
+// Toggle flips the Purge flag of the finding with the given hash and
+// returns the new value. Returns an error if no entry exists.
+func (m Manifest) Toggle(hash string) (bool, error) {
+	f, ok := m[hash]
+	if !ok {
+		return false, fmt.Errorf("manifest: no finding for blob %s", hash)
+	}
+	f.Purge = !f.Purge
+	return f.Purge, nil
+}
+
+// SetPurge sets the Purge flag of the finding with the given hash to a
+// specific value. Returns (true, nil) if the value changed, (false, nil)
+// if it was already the requested value, or an error if no entry exists.
+func (m Manifest) SetPurge(hash string, purge bool) (bool, error) {
+	f, ok := m[hash]
+	if !ok {
+		return false, fmt.Errorf("manifest: no finding for blob %s", hash)
+	}
+	if f.Purge == purge {
+		return false, nil
+	}
+	f.Purge = purge
+	return true, nil
+}
+
+// MarkAllForPurge sets Purge=true on every entry.
+func (m Manifest) MarkAllForPurge() {
+	for _, f := range m {
+		f.Purge = true
+	}
+}
+
+// ClearAllPurge sets Purge=false on every entry.
+func (m Manifest) ClearAllPurge() {
+	for _, f := range m {
+		f.Purge = false
+	}
+}
+
+// Merge folds another manifest into m, applying Add's merge-on-collision
+// semantics for existing hashes. Returns the count of newly inserted
+// entries — useful for callers that need to refresh a derived view only
+// when the structure changes.
+func (m Manifest) Merge(other Manifest) int {
+	added := 0
+	for _, f := range other {
+		if _, existed := m[f.BlobHash]; !existed {
+			added++
+		}
+		m.Add(f)
+	}
+	return added
 }
 
 // PurgeCount returns the number of findings marked for purging.

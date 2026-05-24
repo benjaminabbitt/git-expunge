@@ -37,3 +37,6 @@ manifest.md
 *.tar.zst
 *.tar.gz
 *.7z
+
+# SCM memory (local session data, not shared)
+.scm/memory/

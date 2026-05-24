@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 	"github.com/zricethezav/gitleaks/v8/detect"
 )
 
@@ -31,7 +32,7 @@ func NewSecretDetector() (*SecretDetector, error) {
 
 // Detect checks if a blob contains secrets.
 // Returns a slice of findings (one per secret found).
-func (d *SecretDetector) Detect(blob *BlobInfo) []*domain.Finding {
+func (d *SecretDetector) Detect(blob *gitquery.BlobInfo) []*domain.Finding {
 	content, err := blob.Content()
 	if err != nil {
 		return nil

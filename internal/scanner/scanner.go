@@ -6,11 +6,12 @@ import (
 	"sync"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 )
 
 // RepoWalker abstracts repository walking for testing.
 type RepoWalker interface {
-	Walk(handler BlobHandler) error
+	Walk(handler gitquery.BlobHandler) error
 }
 
 // WalkerFactory creates RepoWalkers for a given path.
@@ -18,7 +19,7 @@ type WalkerFactory func(repoPath string) (RepoWalker, error)
 
 // DefaultWalkerFactory creates real git walkers.
 func DefaultWalkerFactory(repoPath string) (RepoWalker, error) {
-	return NewWalker(repoPath)
+	return gitquery.NewWalker(repoPath)
 }
 
 // Config holds scanner configuration.
@@ -109,7 +110,7 @@ func (s *Scanner) Scan(repoPath string) (domain.Manifest, error) {
 //   - Single collector goroutine receives findings and builds the manifest
 func (s *Scanner) scanParallel(walker RepoWalker, numWorkers int) (domain.Manifest, error) {
 	// Channels for fan-out (blobs) and fan-in (findings)
-	blobChan := make(chan *BlobInfo, numWorkers*2)
+	blobChan := make(chan *gitquery.BlobInfo, numWorkers*2)
 	resultChan := make(chan []*domain.Finding, numWorkers*2)
 	errChan := make(chan error, 1)
 
@@ -132,7 +133,7 @@ func (s *Scanner) scanParallel(walker RepoWalker, numWorkers int) (domain.Manife
 	// Producer: walk repository and send blobs to workers
 	// The walker already deduplicates blobs, so each blob is sent exactly once
 	go func() {
-		err := walker.Walk(func(blob *BlobInfo) error {
+		err := walker.Walk(func(blob *gitquery.BlobInfo) error {
 			blobChan <- blob
 			return nil
 		})
@@ -177,7 +178,7 @@ func (s *Scanner) scanParallel(walker RepoWalker, numWorkers int) (domain.Manife
 }
 
 // worker processes blobs from the channel and sends findings to results.
-func (s *Scanner) worker(blobs <-chan *BlobInfo, results chan<- []*domain.Finding) {
+func (s *Scanner) worker(blobs <-chan *gitquery.BlobInfo, results chan<- []*domain.Finding) {
 	for blob := range blobs {
 		var findings []*domain.Finding
 

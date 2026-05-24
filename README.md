@@ -81,6 +81,7 @@ git-expunge
 # Or use CLI commands:
 git-expunge scan .                # Scan for secrets and binaries
 git-expunge add "*.env" .         # Add specific files/patterns to remove
+git-expunge retroignore .         # Retroapply .gitignore to history
 git-expunge rewrite .             # Dry-run rewrite
 git-expunge rewrite . --execute   # Execute the rewrite
 ```
@@ -174,6 +175,7 @@ git-expunge is designed to never lose your data:
 git-expunge [repo]            Launch interactive TUI (default command)
 git-expunge scan [repo]       Scan for secrets and binaries
 git-expunge add <path>...     Add files/directories to manifest for removal
+git-expunge retroignore       Retroactively apply .gitignore rules to history
 git-expunge report generate   Create human-readable markdown report
 git-expunge report read       Parse markdown back to manifest
 git-expunge rewrite           Rewrite history to remove selected items
@@ -198,6 +200,20 @@ git-expunge add "*.pem" "*.key" ".env*" .
 ```
 
 Added files are stored in the manifest with `purge: true` and will be removed on the next rewrite.
+
+### Retroactively Applying `.gitignore`
+
+If a file is ignored by `.gitignore` today, it should never have been committed in the first place. `git-expunge retroignore` walks history, checks every (path, blob) tuple against the repo's current ignore rules, and builds a findings manifest for everything that would be ignored now:
+
+```bash
+git-expunge retroignore .                 # Build manifest, then prompt to review
+git-expunge retroignore . --no-prompt     # Build manifest and exit
+git-expunge retroignore . --yes           # Build manifest and auto-launch review UI
+```
+
+All standard gitignore sources are honored — per-directory `.gitignore`, `.git/info/exclude`, and the global `core.excludesFile` — because the matcher is `git check-ignore` itself.
+
+If a manifest already exists, new findings are merged in without overwriting existing entries, so you can run `scan` and `retroignore` in either order. After writing the manifest the command hands you off to the standard review/rewrite/verify flow.
 
 ## Configuration
 

@@ -1,4 +1,4 @@
-package manifest
+package report
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
 )
 
-func TestGenerateReport(t *testing.T) {
+func TestFromManifest(t *testing.T) {
 	manifest := domain.NewManifest()
 	manifest.Add(&domain.Finding{
 		BlobHash: "abc123def456",
@@ -29,8 +29,8 @@ func TestGenerateReport(t *testing.T) {
 	})
 
 	var buf bytes.Buffer
-	if err := GenerateReport(manifest, &buf); err != nil {
-		t.Fatalf("GenerateReport failed: %v", err)
+	if err := FromManifest(manifest, &buf); err != nil {
+		t.Fatalf("FromManifest failed: %v", err)
 	}
 
 	output := buf.String()
@@ -68,7 +68,7 @@ func TestGenerateReport(t *testing.T) {
 	}
 }
 
-func TestParseReport(t *testing.T) {
+func TestParse(t *testing.T) {
 	input := `# git-expunge Manifest
 
 Review the findings below.
@@ -91,9 +91,9 @@ Review the findings below.
 - **Commits:** ` + "`commit3`" + `
 `
 
-	manifest, err := ParseReport(strings.NewReader(input))
+	manifest, err := Parse(strings.NewReader(input))
 	if err != nil {
-		t.Fatalf("ParseReport failed: %v", err)
+		t.Fatalf("Parse failed: %v", err)
 	}
 
 	if len(manifest) != 2 {
@@ -157,14 +157,14 @@ func TestRoundTrip(t *testing.T) {
 
 	// Generate report
 	var buf bytes.Buffer
-	if err := GenerateReport(original, &buf); err != nil {
-		t.Fatalf("GenerateReport failed: %v", err)
+	if err := FromManifest(original, &buf); err != nil {
+		t.Fatalf("FromManifest failed: %v", err)
 	}
 
 	// Parse report
-	parsed, err := ParseReport(&buf)
+	parsed, err := Parse(&buf)
 	if err != nil {
-		t.Fatalf("ParseReport failed: %v", err)
+		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Verify round-trip

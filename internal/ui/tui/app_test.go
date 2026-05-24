@@ -35,8 +35,8 @@ func TestNew(t *testing.T) {
 	m := createTestManifest()
 	model := New(m, "", ModeReview)
 
-	if len(model.findings) != 2 {
-		t.Errorf("expected 2 findings, got %d", len(model.findings))
+	if len(model.session.Findings()) != 2 {
+		t.Errorf("expected 2 findings, got %d", len(model.session.Findings()))
 	}
 	if model.cursor != 0 {
 		t.Error("expected cursor at 0")
@@ -95,7 +95,7 @@ func TestModel_Update_Toggle(t *testing.T) {
 	if !model.filtered[0].Purge {
 		t.Error("expected first item to be marked for purge")
 	}
-	if model.saved {
+	if model.WasSaved() {
 		t.Error("expected saved to be false after change")
 	}
 
@@ -136,6 +136,63 @@ func TestModel_Update_ClearAll(t *testing.T) {
 		if f.Purge {
 			t.Error("expected all items to have purge cleared")
 		}
+	}
+}
+
+// TestModel_Update_ClearAll_ClearsHiddenByFilter pins down the contract that
+// "clear all" empties the queue across the whole manifest, not just the
+// currently visible subset. Previously the handler iterated m.filtered so
+// items hidden by an active filter (e.g. FilterBinaries) silently kept
+// Purge=true.
+func TestModel_Update_ClearAll_ClearsHiddenByFilter(t *testing.T) {
+	model := New(createTestManifest(), "", ModeReview)
+
+	// Mark every finding for purge while no filter hides anything.
+	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	model = newModel.(Model)
+
+	// Switch to a filter that only shows binaries; the secret in
+	// createTestManifest() is now hidden.
+	model.filter = FilterBinaries
+	model.applyFilter()
+	if len(model.filtered) != 1 {
+		t.Fatalf("setup: expected 1 binary visible, got %d", len(model.filtered))
+	}
+
+	// Press 'c'.
+	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	model = newModel.(Model)
+
+	// Every finding in the manifest should now be cleared, including the
+	// hidden secret.
+	if got := model.session.Manifest().PurgeCount(); got != 0 {
+		t.Errorf("expected manifest PurgeCount=0 after clear-all, got %d", got)
+	}
+	for _, f := range model.session.Findings() {
+		if f.Purge {
+			t.Errorf("finding %q still marked for purge after clear-all (filter was %q)",
+				f.Path, model.filter)
+		}
+	}
+}
+
+// TestModel_Update_PurgeAll_MarksHiddenByFilter mirrors the previous test
+// for purge-all: it should mark every finding, not just the visible ones.
+func TestModel_Update_PurgeAll_MarksHiddenByFilter(t *testing.T) {
+	model := New(createTestManifest(), "", ModeReview)
+
+	model.filter = FilterBinaries
+	model.applyFilter()
+	if len(model.filtered) != 1 {
+		t.Fatalf("setup: expected 1 binary visible, got %d", len(model.filtered))
+	}
+
+	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	model = newModel.(Model)
+
+	if got := model.session.Manifest().PurgeCount(); got != len(model.session.Findings()) {
+		t.Errorf("expected every finding marked for purge, got PurgeCount=%d/%d",
+			got, len(model.session.Findings()))
 	}
 }
 
@@ -186,7 +243,7 @@ func TestModel_Update_Save(t *testing.T) {
 	// Press 's' to save
 	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
 	model = newModel.(Model)
-	if !model.saved {
+	if !model.WasSaved() {
 		t.Error("expected saved to be true")
 	}
 }
@@ -195,7 +252,7 @@ func TestModel_Update_Save(t *testing.T) {
 func TestModel_Update_Quit(t *testing.T) {
 	model := New(createTestManifest(), "", ModeReview)
 
-	// Press 'q' to quit
+	// Press 'q' to quit on a model with no unsaved changes -> exits immediately.
 	newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	model = newModel.(Model)
 
@@ -204,6 +261,111 @@ func TestModel_Update_Quit(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Error("expected quit command")
+	}
+	if model.quitConfirmMode {
+		t.Error("clean model should not enter quit-confirm mode")
+	}
+}
+
+// TestModel_Quit_WhenDirty_PromptsInsteadOfExiting pins down that pressing
+// 'q' after a mutation does NOT silently exit — it opens a confirm prompt
+// so changes are not lost.
+func TestModel_Quit_WhenDirty_PromptsInsteadOfExiting(t *testing.T) {
+	model := New(createTestManifest(), "", ModeReview)
+
+	// Make a change (toggle the first finding's purge state).
+	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
+	model = newModel.(Model)
+	if model.WasSaved() {
+		t.Fatalf("setup: model should be dirty after toggle")
+	}
+
+	newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	model = newModel.(Model)
+
+	if model.quitting {
+		t.Errorf("dirty quit must NOT set quitting; should open prompt instead")
+	}
+	if cmd != nil {
+		t.Errorf("dirty quit must NOT return a tea.Quit command; got %v", cmd)
+	}
+	if !model.quitConfirmMode {
+		t.Errorf("dirty quit should open quitConfirmMode")
+	}
+}
+
+// TestModel_QuitPrompt_YesSavesAndExits — pressing y/enter at the prompt
+// flushes m.saved=true and quits.
+func TestModel_QuitPrompt_YesSavesAndExits(t *testing.T) {
+	model := New(createTestManifest(), "", ModeReview)
+	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
+	model = newModel.(Model)
+	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	model = newModel.(Model)
+	if !model.quitConfirmMode {
+		t.Fatalf("setup: expected quit prompt to be open")
+	}
+
+	newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	model = newModel.(Model)
+
+	if !model.WasSaved() {
+		t.Error("y at quit prompt should mark saved=true")
+	}
+	if !model.quitting {
+		t.Error("y at quit prompt should set quitting=true")
+	}
+	if cmd == nil {
+		t.Error("y at quit prompt should return tea.Quit")
+	}
+	if model.quitConfirmMode {
+		t.Error("y at quit prompt should close the prompt")
+	}
+}
+
+// TestModel_QuitPrompt_NoDiscardsAndExits — pressing n at the prompt exits
+// without flipping saved (changes are intentionally dropped).
+func TestModel_QuitPrompt_NoDiscardsAndExits(t *testing.T) {
+	model := New(createTestManifest(), "", ModeReview)
+	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
+	model = newModel.(Model)
+	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	model = newModel.(Model)
+
+	newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	model = newModel.(Model)
+
+	if model.WasSaved() {
+		t.Error("n at quit prompt must NOT mark saved=true")
+	}
+	if !model.quitting {
+		t.Error("n at quit prompt should set quitting=true")
+	}
+	if cmd == nil {
+		t.Error("n at quit prompt should return tea.Quit")
+	}
+}
+
+// TestModel_QuitPrompt_EscCancels — Esc at the prompt aborts the quit and
+// leaves the user in the editor.
+func TestModel_QuitPrompt_EscCancels(t *testing.T) {
+	model := New(createTestManifest(), "", ModeReview)
+	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
+	model = newModel.(Model)
+	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	model = newModel.(Model)
+
+	newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model = newModel.(Model)
+
+	if model.quitting {
+		t.Error("Esc at quit prompt must NOT set quitting")
+	}
+	if cmd != nil {
+		t.Error("Esc at quit prompt must NOT return tea.Quit")
+	}
+	if model.quitConfirmMode {
+		t.Error("Esc at quit prompt should close the prompt")
 	}
 }
 
@@ -258,13 +420,24 @@ func TestModel_GetManifest(t *testing.T) {
 func TestModel_WasSaved(t *testing.T) {
 	model := New(createTestManifest(), "", ModeReview)
 
-	if model.WasSaved() {
-		t.Error("expected WasSaved to be false initially")
+	// A freshly loaded model is treated as clean: nothing the user did,
+	// nothing to lose. WasSaved should reflect that.
+	if !model.WasSaved() {
+		t.Error("expected WasSaved to be true on a freshly loaded manifest")
 	}
 
-	model.saved = true
+	// Mutate via the toggle handler so we hit the real saved=false path.
+	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
+	model = newModel.(Model)
+	if model.WasSaved() {
+		t.Error("expected WasSaved to be false after a mutation")
+	}
+
+	// Pressing 's' explicitly marks saved again.
+	newModel, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	model = newModel.(Model)
 	if !model.WasSaved() {
-		t.Error("expected WasSaved to be true after setting")
+		t.Error("expected WasSaved to be true after pressing s")
 	}
 }
 
@@ -307,7 +480,7 @@ func TestFormatSize(t *testing.T) {
 func TestModel_EmptyManifest(t *testing.T) {
 	model := New(domain.NewManifest(), "", ModeReview)
 
-	if len(model.findings) != 0 {
+	if len(model.session.Findings()) != 0 {
 		t.Error("expected empty findings")
 	}
 

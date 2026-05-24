@@ -14,8 +14,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
-	"github.com/benjaminabbitt/git-expunge/internal/manifest"
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 	"github.com/benjaminabbitt/git-expunge/internal/preview"
+	"github.com/benjaminabbitt/git-expunge/internal/report"
+	"github.com/benjaminabbitt/git-expunge/internal/review"
 	"github.com/benjaminabbitt/git-expunge/internal/rewriter"
 	"github.com/benjaminabbitt/git-expunge/internal/safety"
 	"github.com/benjaminabbitt/git-expunge/internal/scanner"
@@ -305,7 +307,7 @@ type TreeNode struct {
 	IsDir      bool
 	Expanded   bool
 	Children   []*TreeNode
-	File       *scanner.HistoricalFile // nil for directories
+	File       *gitquery.HistoricalFile // nil for directories
 	Selected   bool
 	InManifest bool // Already in manifest
 	Depth      int
@@ -314,18 +316,17 @@ type TreeNode struct {
 
 // Model is the Bubbletea model for the TUI.
 type Model struct {
-	// Common state
-	manifest      domain.Manifest
+	// Shared review backend — owns the manifest, sorted findings, and
+	// dirty state. Same backend is used by the CLI reviewer.
+	session       *review.Session
 	repoPath      string
 	keys          KeyMap
 	width         int
 	height        int
-	saved         bool
 	quitting      bool
 	viewMode      ViewMode
 
-	// Review mode state
-	findings      []*domain.Finding
+	// Review mode state (presentation only — filter/cursor/scroll)
 	filtered      []*domain.Finding
 	cursor        int
 	scrollTop     int
@@ -338,7 +339,7 @@ type Model struct {
 	previewErrors map[string]string
 
 	// Browse mode state
-	allFiles       []*scanner.HistoricalFile
+	allFiles       []*gitquery.HistoricalFile
 	treeRoot       *TreeNode
 	flatTree       []*TreeNode // Flattened visible nodes
 	browseCursor   int
@@ -366,6 +367,11 @@ type Model struct {
 	skippedBlobs    []domain.SkippedBlob // Blobs skipped due to shared paths
 	safeBlobCount   int                  // Number of blobs safe to purge
 
+	// quitConfirmMode is active when the user pressed 'q' with unsaved
+	// changes. While set, all key input is routed to the quit prompt and
+	// no other handler runs.
+	quitConfirmMode bool
+
 	// Export/restore state
 	exportPath    string
 	exportMessage string
@@ -374,15 +380,8 @@ type Model struct {
 }
 
 // New creates a new TUI model.
-func New(manifest domain.Manifest, repoPath string, startMode ViewMode) Model {
-	// Convert to sorted slice
-	findings := make([]*domain.Finding, 0, len(manifest))
-	for _, f := range manifest {
-		findings = append(findings, f)
-	}
-	sort.Slice(findings, func(i, j int) bool {
-		return findings[i].Path < findings[j].Path
-	})
+func New(m domain.Manifest, repoPath string, startMode ViewMode) Model {
+	session := review.NewSession(m)
 
 	// Create preview generator (may fail if repo not accessible)
 	var previewGen *preview.Generator
@@ -409,10 +408,9 @@ func New(manifest domain.Manifest, repoPath string, startMode ViewMode) Model {
 	confirmInput.CharLimit = 10
 	confirmInput.Width = 20
 
-	m := Model{
-		manifest:      manifest,
+	model := Model{
+		session:       session,
 		repoPath:      repoPath,
-		findings:      findings,
 		keys:          DefaultKeyMap(),
 		filter:        FilterAll,
 		viewMode:      startMode,
@@ -426,9 +424,8 @@ func New(manifest domain.Manifest, repoPath string, startMode ViewMode) Model {
 		confirmInput:  confirmInput,
 		scanConfig:    scanner.DefaultConfig(),
 	}
-	m.applyFilter()
-
-	return m
+	model.applyFilter()
+	return model
 }
 
 // Init implements tea.Model.
@@ -459,7 +456,7 @@ type verifyCompleteMsg struct {
 }
 
 type filesLoadedMsg struct {
-	files []*scanner.HistoricalFile
+	files []*gitquery.HistoricalFile
 	err   error
 }
 
@@ -523,14 +520,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.scanProgress = fmt.Sprintf("Error: %s", msg.err)
 		} else {
-			// Merge results into manifest
-			for hash, f := range msg.manifest {
-				if _, exists := m.manifest[hash]; !exists {
-					m.manifest.Add(f)
-				}
-			}
-			// Refresh findings list
-			m.refreshFindings()
+			m.session.Merge(msg.manifest)
+			m.applyFilter()
 			m.viewMode = ModeReview
 		}
 		return m, nil
@@ -560,6 +551,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Quit-confirmation prompt takes precedence over everything else.
+		if m.quitConfirmMode {
+			return m.handleQuitConfirmInput(msg)
+		}
+
 		// Handle confirm mode input first
 		if m.confirmMode {
 			return m.handleConfirmInput(msg)
@@ -573,11 +569,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Global keys
 		switch {
 		case key.Matches(msg, m.keys.Quit):
+			if m.session.Dirty() {
+				m.quitConfirmMode = true
+				return m, nil
+			}
 			m.quitting = true
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Save):
-			m.saved = true
+			m.session.MarkSaved()
 
 		case key.Matches(msg, m.keys.Export):
 			return m, m.exportReport()
@@ -655,21 +655,17 @@ func (m Model) handleReviewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.keys.Toggle):
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
-			m.filtered[m.cursor].Purge = !m.filtered[m.cursor].Purge
-			m.saved = false
+			// Toggle by hash so the action is unambiguous under any filter.
+			_, _ = m.session.ToggleByHash(m.filtered[m.cursor].BlobHash)
 		}
 
 	case key.Matches(msg, m.keys.PurgeAll):
-		for _, f := range m.filtered {
-			f.Purge = true
-		}
-		m.saved = false
+		// Operates on the whole manifest, not just the current filter, so
+		// the queue isn't silently desynced when a filter is active.
+		m.session.MarkAllForPurge()
 
 	case key.Matches(msg, m.keys.ClearAll):
-		for _, f := range m.filtered {
-			f.Purge = false
-		}
-		m.saved = false
+		m.session.ClearAllPurge()
 
 	case key.Matches(msg, m.keys.Filter):
 		m.filter = (m.filter + 1) % 4
@@ -719,7 +715,6 @@ func (m Model) handleBrowseKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.browseCursor < len(m.flatTree) {
 			node := m.flatTree[m.browseCursor]
 			m.toggleNodeSelection(node)
-			m.saved = false
 		}
 
 	case key.Matches(msg, m.keys.PurgeAll):
@@ -728,13 +723,11 @@ func (m Model) handleBrowseKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.selectNode(node, true)
 			}
 		}
-		m.saved = false
 
 	case key.Matches(msg, m.keys.ClearAll):
 		for _, node := range m.flatTree {
 			m.selectNode(node, false)
 		}
-		m.saved = false
 
 	case key.Matches(msg, m.keys.Search):
 		m.searchMode = true
@@ -793,7 +786,7 @@ func (m Model) handleRewriteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.runRewrite(true)
 
 	case key.Matches(msg, m.keys.Execute):
-		if m.manifest.PurgeCount() > 0 {
+		if m.session.Manifest().PurgeCount() > 0 {
 			m.confirmMode = true
 			m.confirmInput.SetValue("")
 			m.confirmInput.Focus()
@@ -821,6 +814,41 @@ func (m Model) handleConfirmInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.confirmInput, cmd = m.confirmInput.Update(msg)
 	return m, cmd
+}
+
+// handleQuitConfirmInput resolves the "Save changes before quitting?" prompt
+// that opens when the user presses 'q' with unsaved changes:
+//   - y or Enter   -> mark saved (manifest will be persisted by the caller) and quit
+//   - n           -> quit without saving (changes discarded)
+//   - Esc or any other key -> dismiss the prompt and return to editing
+func (m Model) handleQuitConfirmInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEsc:
+		m.quitConfirmMode = false
+		return m, nil
+	case tea.KeyEnter:
+		m.quitConfirmMode = false
+		m.session.MarkSaved()
+		m.quitting = true
+		return m, tea.Quit
+	}
+
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 {
+		switch msg.Runes[0] {
+		case 'y', 'Y':
+			m.quitConfirmMode = false
+			m.session.MarkSaved()
+			m.quitting = true
+			return m, tea.Quit
+		case 'n', 'N':
+			m.quitConfirmMode = false
+			m.quitting = true
+			return m, tea.Quit
+		}
+	}
+
+	// Unknown key — stay in the prompt rather than silently quitting.
+	return m, nil
 }
 
 func (m *Model) adjustScroll() {
@@ -866,10 +894,16 @@ func (m Model) View() string {
 		b.WriteString(m.renderRewriteMode())
 	}
 
+	if m.quitConfirmMode {
+		b.WriteString("\n")
+		b.WriteString(secretBadgeStyle.Render(" UNSAVED "))
+		b.WriteString(" Save before quitting? [Y/n] (Esc to cancel)\n")
+	}
+
 	// Status bar
-	purgeCount := m.manifest.PurgeCount()
-	statusText := fmt.Sprintf("Marked for purge: %d/%d", purgeCount, len(m.findings))
-	if m.saved {
+	purgeCount := m.session.Manifest().PurgeCount()
+	statusText := fmt.Sprintf("Marked for purge: %d/%d", purgeCount, m.session.Len())
+	if !m.session.Dirty() {
 		statusText += " ✓ saved"
 	} else if purgeCount > 0 {
 		statusText += " (unsaved)"
@@ -919,7 +953,7 @@ func (m Model) renderReviewMode() string {
 	var b strings.Builder
 
 	// Filter info
-	filterInfo := fmt.Sprintf("Filter: %s (%d/%d)", m.filter.String(), len(m.filtered), len(m.findings))
+	filterInfo := fmt.Sprintf("Filter: %s (%d/%d)", m.filter.String(), len(m.filtered), m.session.Len())
 	b.WriteString(lipgloss.NewStyle().Foreground(secondaryColor).Render(filterInfo))
 	b.WriteString("\n")
 
@@ -1047,7 +1081,7 @@ func (m Model) renderScanMode() string {
 func (m Model) renderRewriteMode() string {
 	var b strings.Builder
 
-	purgeCount := m.manifest.PurgeCount()
+	purgeCount := m.session.Manifest().PurgeCount()
 
 	var content string
 	if m.rewriteComplete {
@@ -1755,7 +1789,7 @@ func (m Model) renderHelp() string {
 func (m *Model) applyFilter() {
 	m.filtered = make([]*domain.Finding, 0)
 
-	for _, f := range m.findings {
+	for _, f := range m.session.Findings() {
 		switch m.filter {
 		case FilterAll:
 			m.filtered = append(m.filtered, f)
@@ -1775,14 +1809,17 @@ func (m *Model) applyFilter() {
 	}
 }
 
-// GetManifest returns the modified manifest.
+// GetManifest returns the modified manifest (the same map the caller
+// originally passed to New).
 func (m Model) GetManifest() domain.Manifest {
-	return m.manifest
+	return m.session.Manifest()
 }
 
-// WasSaved returns whether the user explicitly saved.
+// WasSaved reports whether the in-memory state matches the last save.
+// True means "nothing to write" or "the user explicitly saved since the
+// last mutation."
 func (m Model) WasSaved() bool {
-	return m.saved
+	return !m.session.Dirty()
 }
 
 func formatSize(bytes int64) string {
@@ -1841,7 +1878,7 @@ func (m *Model) buildTree() {
 
 	// Build a map of existing manifest entries
 	inManifest := make(map[string]bool)
-	for _, f := range m.manifest {
+	for _, f := range m.session.Manifest() {
 		inManifest[f.Path] = true
 	}
 
@@ -1987,38 +2024,40 @@ func (m *Model) selectNode(node *TreeNode, selected bool) {
 		for _, child := range node.Children {
 			m.selectNode(child, selected)
 		}
-	} else if selected && !node.InManifest && node.File != nil {
-		// Add to manifest
-		finding := &domain.Finding{
+		return
+	}
+
+	if node.File == nil {
+		return
+	}
+
+	if selected && !node.InManifest {
+		m.session.AddFinding(&domain.Finding{
 			BlobHash: node.File.BlobHash,
 			Type:     domain.FindingTypeAdd,
 			Path:     node.Path,
 			Commits:  node.File.Commits,
 			Purge:    true,
-		}
-		m.manifest.Add(finding)
-		m.refreshFindings()
-	} else if !selected && node.File != nil {
-		// Remove from manifest if it's an "add" type
-		if f, exists := m.manifest[node.File.BlobHash]; exists && f.Type == domain.FindingTypeAdd {
-			delete(m.manifest, node.File.BlobHash)
-			m.refreshFindings()
-		} else if f, exists := m.manifest[node.File.BlobHash]; exists {
-			// Just mark as not purge
-			f.Purge = false
-		}
+		})
+		m.applyFilter()
+		return
 	}
-}
 
-func (m *Model) refreshFindings() {
-	m.findings = make([]*domain.Finding, 0, len(m.manifest))
-	for _, f := range m.manifest {
-		m.findings = append(m.findings, f)
+	if !selected {
+		// Deselect: drop user-added findings entirely, otherwise just
+		// clear the purge flag so the user's scan history is preserved.
+		mf := m.session.Manifest()
+		f, exists := mf[node.File.BlobHash]
+		if !exists {
+			return
+		}
+		if f.Type == domain.FindingTypeAdd {
+			m.session.RemoveByHash(node.File.BlobHash)
+			m.applyFilter()
+		} else {
+			_ = m.session.SetPurge(node.File.BlobHash, false)
+		}
 	}
-	sort.Slice(m.findings, func(i, j int) bool {
-		return m.findings[i].Path < m.findings[j].Path
-	})
-	m.applyFilter()
 }
 
 func (m *Model) adjustBrowseScroll() {
@@ -2034,7 +2073,7 @@ func (m *Model) adjustBrowseScroll() {
 
 func (m Model) loadFiles() tea.Cmd {
 	return func() tea.Msg {
-		files, err := scanner.ListHistoricalFiles(m.repoPath)
+		files, err := gitquery.ListHistoricalFiles(m.repoPath)
 		return filesLoadedMsg{files: files, err: err}
 	}
 }
@@ -2055,7 +2094,7 @@ func (m Model) runScan() tea.Cmd {
 
 func (m Model) runRewrite(dryRun bool) tea.Cmd {
 	return func() tea.Msg {
-		blobsToPurge := m.manifest.BlobsToPurge()
+		blobsToPurge := m.session.Manifest().BlobsToPurge()
 		if len(blobsToPurge) == 0 {
 			return rewriteCompleteMsg{err: fmt.Errorf("no blobs to purge")}
 		}
@@ -2063,9 +2102,9 @@ func (m Model) runRewrite(dryRun bool) tea.Cmd {
 		var skipped []domain.SkippedBlob
 
 		// Filter to safe blobs only (protect shared content)
-		allPaths, err := scanner.FindAllPathsForBlobs(m.repoPath, blobsToPurge)
+		allPaths, err := gitquery.FindAllPathsForBlobs(m.repoPath, blobsToPurge)
 		if err == nil {
-			safeToPurge, skippedBlobs := m.manifest.SafeBlobsToPurge(allPaths)
+			safeToPurge, skippedBlobs := m.session.Manifest().SafeBlobsToPurge(allPaths)
 			skipped = skippedBlobs
 			if len(safeToPurge) == 0 {
 				return rewriteCompleteMsg{
@@ -2092,7 +2131,7 @@ func (m Model) runRewrite(dryRun bool) tea.Cmd {
 
 func (m Model) runVerify() tea.Cmd {
 	return func() tea.Msg {
-		blobsToPurge := m.manifest.BlobsToPurge()
+		blobsToPurge := m.session.Manifest().BlobsToPurge()
 		var stillReachable []string
 
 		for _, hash := range blobsToPurge {
@@ -2121,18 +2160,18 @@ func (m Model) exportReport() tea.Cmd {
 		defer f.Close()
 
 		// Generate report with shared blob info
-		gen := manifest.NewReportGenerator(m.repoPath)
+		gen := report.NewGenerator(m.repoPath)
 
 		// Get shared blob info if possible
-		blobHashes := make([]string, 0, len(m.manifest))
-		for hash := range m.manifest {
+		blobHashes := make([]string, 0, len(m.session.Manifest()))
+		for hash := range m.session.Manifest() {
 			blobHashes = append(blobHashes, hash)
 		}
-		if allPaths, err := scanner.FindAllPathsForBlobs(m.repoPath, blobHashes); err == nil {
+		if allPaths, err := gitquery.FindAllPathsForBlobs(m.repoPath, blobHashes); err == nil {
 			gen.SetSharedBlobs(allPaths)
 		}
 
-		if err := gen.Generate(m.manifest, f); err != nil {
+		if err := gen.Generate(m.session.Manifest(), f); err != nil {
 			return exportCompleteMsg{err: err}
 		}
 

@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
 	"github.com/benjaminabbitt/git-expunge/internal/preview"
+	"github.com/benjaminabbitt/git-expunge/internal/review"
 )
 
 // Reviewer provides an interactive CLI for reviewing findings.
 type Reviewer struct {
-	manifest     domain.Manifest
-	findings     []*domain.Finding
+	session      *review.Session
+	findings     []*domain.Finding // sorted view alias from session; stable for CLI's lifetime
 	index        int
 	in           io.Reader
 	out          io.Writer
@@ -24,26 +24,22 @@ type Reviewer struct {
 	previewCache map[string]*preview.Preview
 }
 
-// NewReviewer creates a new CLI reviewer.
+// NewReviewer creates a new CLI reviewer over the given manifest. The
+// shared review.Session owns the queue state and operations; mutations
+// applied here are visible to whoever next reads the same map. The CLI
+// never adds or removes findings (only toggles), so the sorted view
+// captured here stays accurate for the session's lifetime.
 func NewReviewer(manifest domain.Manifest, repoPath string) *Reviewer {
-	// Convert to slice and sort by path
-	findings := make([]*domain.Finding, 0, len(manifest))
-	for _, f := range manifest {
-		findings = append(findings, f)
-	}
-	sort.Slice(findings, func(i, j int) bool {
-		return findings[i].Path < findings[j].Path
-	})
-
 	// Create preview generator
 	var previewGen *preview.Generator
 	if repoPath != "" {
 		previewGen, _ = preview.NewGenerator(repoPath)
 	}
 
+	s := review.NewSession(manifest)
 	return &Reviewer{
-		manifest:     manifest,
-		findings:     findings,
+		session:      s,
+		findings:     s.Findings(),
 		index:        0,
 		in:           os.Stdin,
 		out:          os.Stdout,
@@ -99,16 +95,12 @@ func (r *Reviewer) Run() error {
 			r.showCurrent()
 
 		case 'a': // purge all
-			for _, f := range r.findings {
-				f.Purge = true
-			}
+			r.session.MarkAllForPurge()
 			fmt.Fprintln(r.out, "Marked all findings for purge.")
 			r.showCurrent()
 
 		case 'c': // clear all
-			for _, f := range r.findings {
-				f.Purge = false
-			}
+			r.session.ClearAllPurge()
 			fmt.Fprintln(r.out, "Cleared all purge marks.")
 			r.showCurrent()
 
@@ -213,7 +205,9 @@ func (r *Reviewer) getPreview(blobHash string) *preview.Preview {
 }
 
 func (r *Reviewer) toggleCurrent() {
-	r.findings[r.index].Purge = !r.findings[r.index].Purge
+	if _, err := r.session.ToggleAt(r.index); err != nil {
+		fmt.Fprintf(r.out, "toggle failed: %v\n", err)
+	}
 }
 
 func (r *Reviewer) showSummary() {
@@ -253,7 +247,9 @@ func formatSize(bytes int64) string {
 	}
 }
 
-// GetManifest returns the modified manifest.
+// GetManifest returns the modified manifest. It is the same underlying
+// map the caller passed to NewReviewer, so mutations made during the
+// review session are visible here.
 func (r *Reviewer) GetManifest() domain.Manifest {
-	return r.manifest
+	return r.session.Manifest()
 }

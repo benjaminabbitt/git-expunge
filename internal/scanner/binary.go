@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 	"github.com/gabriel-vasile/mimetype"
 )
 
@@ -31,7 +32,7 @@ func NewBinaryDetector(sizeThreshold int64) *BinaryDetector {
 
 // Detect checks if a blob is a binary file that should be flagged.
 // Returns nil if the blob is not a binary or doesn't meet criteria.
-func (d *BinaryDetector) Detect(blob *BlobInfo) *domain.Finding {
+func (d *BinaryDetector) Detect(blob *gitquery.BlobInfo) *domain.Finding {
 	// Skip small files
 	if blob.Size < d.sizeThreshold {
 		return nil

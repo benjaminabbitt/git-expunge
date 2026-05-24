@@ -7,6 +7,7 @@ import (
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
 	"github.com/benjaminabbitt/git-expunge/internal/manifest"
+	"github.com/benjaminabbitt/git-expunge/internal/report"
 	"github.com/benjaminabbitt/git-expunge/internal/safety"
 	"github.com/benjaminabbitt/git-expunge/internal/scanner"
 	"github.com/benjaminabbitt/git-expunge/tests/integration/fixtures"
@@ -42,7 +43,7 @@ func TestEndToEnd_ScanReportReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := manifest.GenerateReport(m, reportFile); err != nil {
+	if err := report.FromManifest(m, reportFile); err != nil {
 		t.Fatalf("GenerateReport failed: %v", err)
 	}
 	reportFile.Close()
@@ -52,7 +53,7 @@ func TestEndToEnd_ScanReportReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	roundTripped, err := manifest.ParseReport(reportFile)
+	roundTripped, err := report.Parse(reportFile)
 	reportFile.Close()
 	if err != nil {
 		t.Fatalf("ParseReport failed: %v", err)

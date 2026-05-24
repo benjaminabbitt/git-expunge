@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -115,11 +116,11 @@ func TestMergeStringSlices(t *testing.T) {
 
 // MockWalker is a mock implementation of RepoWalker for testing.
 type MockWalker struct {
-	Blobs []*BlobInfo
+	Blobs []*gitquery.BlobInfo
 	Err   error
 }
 
-func (m *MockWalker) Walk(handler BlobHandler) error {
+func (m *MockWalker) Walk(handler gitquery.BlobHandler) error {
 	if m.Err != nil {
 		return m.Err
 	}
@@ -142,7 +143,7 @@ func TestScanner_Scan_WithMockWalker(t *testing.T) {
 	secretContent := []byte("AWS_ACCESS_KEY_ID=AKIAZT5K7YFAPXR3VBCD")
 
 	mockWalker := &MockWalker{
-		Blobs: []*BlobInfo{
+		Blobs: []*gitquery.BlobInfo{
 			{
 				Hash:       "binaryhash123",
 				Path:       "bin/app",
@@ -204,7 +205,7 @@ func TestScanner_Scan_BinaryOnly(t *testing.T) {
 	binaryContent[3] = 0x46
 
 	mockWalker := &MockWalker{
-		Blobs: []*BlobInfo{
+		Blobs: []*gitquery.BlobInfo{
 			{
 				Hash:       "hash1",
 				Path:       "bin/app",
@@ -243,7 +244,7 @@ func TestScanner_Scan_BinaryOnly(t *testing.T) {
 
 func TestScanner_Scan_EmptyRepo(t *testing.T) {
 	mockWalker := &MockWalker{
-		Blobs: []*BlobInfo{},
+		Blobs: []*gitquery.BlobInfo{},
 	}
 
 	s := New(DefaultConfig()).WithWalkerFactory(func(path string) (RepoWalker, error) {

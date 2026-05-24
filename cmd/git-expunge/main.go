@@ -1,17 +1,20 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 	"github.com/benjaminabbitt/git-expunge/internal/manifest"
 	"github.com/benjaminabbitt/git-expunge/internal/preview"
+	"github.com/benjaminabbitt/git-expunge/internal/report"
+	"github.com/benjaminabbitt/git-expunge/internal/retroignore"
 	"github.com/benjaminabbitt/git-expunge/internal/rewriter"
 	"github.com/benjaminabbitt/git-expunge/internal/safety"
 	"github.com/benjaminabbitt/git-expunge/internal/scanner"
@@ -234,7 +237,7 @@ func runReportGenerate(cmd *cobra.Command, args []string) error {
 	defer f.Close()
 
 	// Generate report with previews
-	gen := manifest.NewReportGenerator(repoPath)
+	gen := report.NewGenerator(repoPath)
 
 	// Find shared blobs to enhance the report with warnings
 	var blobHashes []string
@@ -243,7 +246,7 @@ func runReportGenerate(cmd *cobra.Command, args []string) error {
 	}
 	if len(blobHashes) > 0 {
 		cmd.Println("Analyzing blob sharing across paths...")
-		if sharedBlobs, err := scanner.FindAllPathsForBlobs(repoPath, blobHashes); err == nil {
+		if sharedBlobs, err := gitquery.FindAllPathsForBlobs(repoPath, blobHashes); err == nil {
 			gen.SetSharedBlobs(sharedBlobs)
 			// Count how many blobs are shared
 			sharedCount := 0
@@ -295,7 +298,7 @@ func runReportRead(cmd *cobra.Command, args []string) error {
 	defer f.Close()
 
 	// Parse report
-	m, err := manifest.ParseReport(f)
+	m, err := report.Parse(f)
 	if err != nil {
 		return fmt.Errorf("failed to parse report: %w", err)
 	}
@@ -451,7 +454,7 @@ func runRewrite(cmd *cobra.Command, args []string) error {
 
 	// Check for shared blobs and filter to safe-only
 	cmd.Println("Checking for shared blob content...")
-	allPaths, err := scanner.FindAllPathsForBlobs(repoPath, blobsToPurge)
+	allPaths, err := gitquery.FindAllPathsForBlobs(repoPath, blobsToPurge)
 	if err != nil {
 		cmd.Printf("Warning: could not check for shared blobs: %v\n", err)
 	} else {
@@ -560,11 +563,38 @@ func runRewrite(cmd *cobra.Command, args []string) error {
 		cmd.Println("\nThis was a dry run. To actually rewrite history, run:")
 		cmd.Printf("  git-expunge rewrite --manifest %s --execute\n", manifestPath)
 	} else {
+		// Move the purged entries out of the active manifest and into a
+		// sidecar at .git/git-expunge-last-purged.json. The sidecar is
+		// what `verify` consults to confirm the rewrite actually
+		// removed those blobs; the main manifest is cleaned so the UI
+		// doesn't keep showing them queued.
+		sidecar := domain.NewManifest()
+		for _, hash := range blobsToPurge {
+			if f, ok := m[hash]; ok {
+				sidecar[hash] = f
+				delete(m, hash)
+			}
+		}
+		if err := manifest.WriteJSON(sidecar, purgedSidecarPath(repoPath)); err != nil {
+			return fmt.Errorf("failed to write purged sidecar: %w", err)
+		}
+		if err := manifest.WriteJSON(m, manifestPath); err != nil {
+			return fmt.Errorf("failed to update manifest after rewrite: %w", err)
+		}
+
 		cmd.Println("\nRepository history has been rewritten.")
+		cmd.Printf("Recorded %d purged entr(ies) for verification.\n", len(sidecar))
 		cmd.Println("Run 'git-expunge verify' to confirm purged items are unreachable.")
 	}
 
 	return nil
+}
+
+// purgedSidecarPath returns the path where rewrite records what it just
+// expunged so verify can confirm unreachability after the main manifest is
+// cleaned up.
+func purgedSidecarPath(repoPath string) string {
+	return filepath.Join(repoPath, ".git", "git-expunge-last-purged.json")
 }
 
 var verifyCmd = &cobra.Command{
@@ -582,31 +612,48 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	}
 
 	manifestPath, _ := cmd.Flags().GetString("manifest")
-	if manifestPath == "" {
-		manifestPath = filepath.Join(repoPath, "git-expunge-findings.json")
+
+	// verify checks the post-rewrite sidecar — the authoritative record
+	// of what was actually expunged. An explicit --manifest flag points
+	// at a specific file (sidecar or otherwise); without it we read the
+	// default sidecar. We deliberately do NOT fall back to the main
+	// findings manifest: a Purge=true flag there means "the user intends
+	// to remove this," not "this was removed," and verifying intent is
+	// meaningless.
+	source := manifestPath
+	if source == "" {
+		source = purgedSidecarPath(repoPath)
 	}
 
-	// Read manifest
-	m, err := manifest.ReadJSON(manifestPath)
+	m, err := manifest.ReadJSON(source)
 	if err != nil {
-		return fmt.Errorf("failed to read manifest: %w", err)
+		if os.IsNotExist(err) {
+			cmd.Printf("No purged-blobs record found at %s.\n", source)
+			cmd.Println("Run 'git-expunge rewrite --execute' first; verify reads the sidecar it writes.")
+			return nil
+		}
+		return fmt.Errorf("failed to read %s: %w", source, err)
+	}
+	blobsToPurge := make([]string, 0, len(m))
+	for hash := range m {
+		blobsToPurge = append(blobsToPurge, hash)
 	}
 
-	// Get blobs that were supposed to be purged
-	blobsToPurge := m.BlobsToPurge()
 	if len(blobsToPurge) == 0 {
-		cmd.Println("No items were marked for purging in manifest.")
+		cmd.Printf("No purged blobs recorded in %s.\n", source)
 		return nil
 	}
+	cmd.Printf("Source: %s\n", source)
 
 	cmd.Printf("Verifying %d blobs are unreachable...\n", len(blobsToPurge))
 
-	// Check each blob
 	var stillReachable []string
 	for _, hash := range blobsToPurge {
-		// Use git cat-file to check if object exists and is reachable
-		checkCmd := fmt.Sprintf("git -C %s cat-file -e %s 2>/dev/null", repoPath, hash)
-		if err := runGitCommand(checkCmd); err == nil {
+		reachable, err := gitquery.IsReachable(repoPath, hash)
+		if err != nil {
+			return fmt.Errorf("checking blob %s: %w", hash, err)
+		}
+		if reachable {
 			stillReachable = append(stillReachable, hash)
 		}
 	}
@@ -633,12 +680,6 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	cmd.Println("\nThe rewrite may not have completed successfully.")
 
 	return fmt.Errorf("%d blobs still reachable", len(stillReachable))
-}
-
-func runGitCommand(command string) error {
-	// Simple shell execution for git commands
-	cmd := exec.Command("sh", "-c", command)
-	return cmd.Run()
 }
 
 var restoreCmd = &cobra.Command{
@@ -767,7 +808,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	// Process each pattern
 	totalAdded := 0
 	for _, pattern := range patterns {
-		findings, err := scanner.FindBlobsForPath(repoPath, pattern)
+		findings, err := gitquery.FindBlobsForPath(repoPath, pattern)
 		if err != nil {
 			return fmt.Errorf("failed to find blobs for '%s': %w", pattern, err)
 		}
@@ -904,6 +945,106 @@ func isRepoPath(path string) bool {
 	return false
 }
 
+var retroignoreCmd = &cobra.Command{
+	Use:   "retroignore [repo-path]",
+	Short: "Build a findings manifest from history matching current gitignore rules",
+	Long: `Retroactively apply the repository's gitignore rules to its history.
+
+Walks every commit and asks git which historical paths would be ignored
+under the current rules (per-directory .gitignore, .git/info/exclude, and
+the global core.excludesFile). Matching blobs are written into the
+findings manifest with Purge=true and Type=add, then you are handed off
+to the standard review flow:
+
+  retroignore  -->  ui  -->  rewrite --execute  -->  verify
+
+If a manifest already exists at the output path, new findings are merged
+into it; entries already present (blob-hash key) are left untouched so
+user-curated selections are preserved.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runRetroignore,
+}
+
+// retroignoreVerifyLauncher is the function invoked after a successful
+// retroignore run when the user accepts the verify prompt. It is a package
+// var so tests can intercept it.
+var retroignoreVerifyLauncher = runUI
+
+func runRetroignore(cmd *cobra.Command, args []string) error {
+	repoPath := "."
+	if len(args) > 0 {
+		repoPath = args[0]
+	}
+
+	outputPath, _ := cmd.Flags().GetString("output")
+	if outputPath == "" {
+		outputPath = filepath.Join(repoPath, "git-expunge-findings.json")
+	}
+	yes, _ := cmd.Flags().GetBool("yes")
+	noPrompt, _ := cmd.Flags().GetBool("no-prompt")
+
+	var existing domain.Manifest
+	if _, err := os.Stat(outputPath); err == nil {
+		existing, err = manifest.ReadJSON(outputPath)
+		if err != nil {
+			return fmt.Errorf("read existing manifest: %w", err)
+		}
+	}
+
+	cmd.Printf("Retroapplying gitignore rules across history of %s...\n", repoPath)
+	m, err := retroignore.BuildManifest(repoPath, existing)
+	if err != nil {
+		return fmt.Errorf("retroignore: %w", err)
+	}
+
+	added := max(0, len(m)-len(existing))
+
+	if err := manifest.WriteJSON(m, outputPath); err != nil {
+		return fmt.Errorf("write manifest: %w", err)
+	}
+
+	cmd.Printf("Added %d gitignore-matched finding(s) (manifest now contains %d).\n", added, len(m))
+	cmd.Printf("Manifest written to: %s\n", outputPath)
+
+	if added == 0 {
+		cmd.Println("No historical blobs match current gitignore rules; nothing to do.")
+		return nil
+	}
+
+	shouldLaunch := false
+	switch {
+	case noPrompt:
+		shouldLaunch = false
+	case yes:
+		shouldLaunch = true
+	case term.IsTerminal(int(os.Stdin.Fd())):
+		shouldLaunch = promptYesNo(cmd, "Launch review UI now? [Y/n]: ", true)
+	}
+
+	if shouldLaunch {
+		return retroignoreVerifyLauncher(cmd, args)
+	}
+
+	cmd.Printf("Review with: git-expunge ui %s\n", repoPath)
+	cmd.Printf("Then expunge with: git-expunge rewrite %s --execute\n", repoPath)
+	return nil
+}
+
+// promptYesNo reads a single line from stdin and returns true for an
+// affirmative response. Empty input returns defaultYes.
+func promptYesNo(cmd *cobra.Command, prompt string, defaultYes bool) bool {
+	cmd.Print(prompt)
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return defaultYes
+	}
+	answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+	if answer == "" {
+		return defaultYes
+	}
+	return answer == "y" || answer == "yes"
+}
+
 func init() {
 	// scan flags
 	scanCmd.Flags().Bool("secrets", true, "Scan for secrets")
@@ -944,6 +1085,11 @@ func init() {
 	previewCmd.Flags().IntP("lines", "n", 0, "Limit output to N lines (0 = no limit)")
 	previewCmd.Flags().Bool("raw", false, "Output raw content without headers")
 
+	// retroignore flags
+	retroignoreCmd.Flags().StringP("output", "o", "", "Manifest output path (default: <repo>/git-expunge-findings.json)")
+	retroignoreCmd.Flags().BoolP("yes", "y", false, "Auto-confirm the post-scan review prompt and launch the UI")
+	retroignoreCmd.Flags().Bool("no-prompt", false, "Skip the review prompt entirely and just write the manifest")
+
 	// add commands to root
 	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(reportCmd)
@@ -953,6 +1099,7 @@ func init() {
 	rootCmd.AddCommand(restoreCmd)
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(previewCmd)
+	rootCmd.AddCommand(retroignoreCmd)
 }
 
 func main() {

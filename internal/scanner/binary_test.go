@@ -2,6 +2,8 @@ package scanner
 
 import (
 	"testing"
+
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 )
 
 func TestBinaryDetector_Detect(t *testing.T) {
@@ -60,7 +62,7 @@ func TestBinaryDetector_Detect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			detector := NewBinaryDetector(tt.sizeThreshold)
 
-			blob := &BlobInfo{
+			blob := &gitquery.BlobInfo{
 				Hash:       "abc123",
 				Path:       "test/file",
 				Size:       tt.size,
