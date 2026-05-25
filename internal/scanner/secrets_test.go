@@ -2,6 +2,8 @@ package scanner
 
 import (
 	"testing"
+
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 )
 
 func TestSecretDetector_DetectContent(t *testing.T) {
@@ -16,8 +18,12 @@ func TestSecretDetector_DetectContent(t *testing.T) {
 		hasSecret bool
 	}{
 		{
+			// Gitleaks' AWS rule explicitly allowlists any value ending in
+			// "EXAMPLE" — that's the canonical placeholder from AWS docs
+			// (AKIAIOSFODNN7EXAMPLE). Use a non-placeholder value that
+			// still matches the access-key regex.
 			name:      "AWS access key pattern",
-			content:   "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
+			content:   "AWS_ACCESS_KEY_ID=AKIAZT5K7YFAPXR3VBCD",
 			hasSecret: true,
 		},
 		{
@@ -59,7 +65,7 @@ func TestSecretDetector_Detect(t *testing.T) {
 	}
 
 	secretContent := []byte("AWS_ACCESS_KEY_ID=AKIAZT5K7YFAPXR3VBCD\nAWS_SECRET_ACCESS_KEY=secret123456789012345678901234567890")
-	blob := &BlobInfo{
+	blob := &gitquery.BlobInfo{
 		Hash:       "abc123",
 		Path:       ".env",
 		Size:       int64(len(secretContent)),
@@ -98,7 +104,7 @@ func TestSecretDetector_SkipsLargeFiles(t *testing.T) {
 	largeContent := make([]byte, 11*1024*1024) // 11MB
 	copy(largeContent, []byte("AWS_ACCESS_KEY_ID=AKIAZT5K7YFAPXR3VBCD"))
 
-	blob := &BlobInfo{
+	blob := &gitquery.BlobInfo{
 		Hash:       "def456",
 		Path:       "large.env",
 		Size:       int64(len(largeContent)),

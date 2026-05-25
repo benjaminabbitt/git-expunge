@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 	"github.com/gabriel-vasile/mimetype"
 )
 
@@ -17,36 +18,26 @@ const (
 	HexPreviewSize = 256
 )
 
-// BinaryDetector detects binary files based on MIME type and size.
-type BinaryDetector struct {
-	sizeThreshold int64
-}
+// BinaryDetector flags blobs whose content is binary by MIME / magic-byte
+// detection. Size is an orthogonal axis — see LargeFileDetector — so a
+// 30-byte PNG and a 30 GB ELF are both flagged here.
+type BinaryDetector struct{}
 
 // NewBinaryDetector creates a new BinaryDetector.
-func NewBinaryDetector(sizeThreshold int64) *BinaryDetector {
-	return &BinaryDetector{
-		sizeThreshold: sizeThreshold,
-	}
+func NewBinaryDetector() *BinaryDetector {
+	return &BinaryDetector{}
 }
 
-// Detect checks if a blob is a binary file that should be flagged.
-// Returns nil if the blob is not a binary or doesn't meet criteria.
-func (d *BinaryDetector) Detect(blob *BlobInfo) *domain.Finding {
-	// Skip small files
-	if blob.Size < d.sizeThreshold {
-		return nil
-	}
-
-	// Get content for MIME detection
+// Detect returns a finding when the blob's MIME type classifies it as
+// binary. Returns nil for text content. Size is irrelevant.
+func (d *BinaryDetector) Detect(blob *gitquery.BlobInfo) *domain.Finding {
 	content, err := blob.Content()
 	if err != nil {
 		return nil
 	}
 
-	// Detect MIME type
 	mtype := mimetype.Detect(content)
 
-	// Check if it's a binary (not text-based)
 	if !d.isBinary(mtype) {
 		return nil
 	}
@@ -58,7 +49,6 @@ func (d *BinaryDetector) Detect(blob *BlobInfo) *domain.Finding {
 		Size:     blob.Size,
 		MimeType: mtype.String(),
 		Commits:  []string{blob.CommitHash},
-		Purge:    false,
 	}
 }
 

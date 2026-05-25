@@ -1,4 +1,4 @@
-package scanner
+package gitquery
 
 import (
 	"fmt"
@@ -16,7 +16,8 @@ import (
 //   - A literal path: "vendor/module/file.go"
 //   - A glob pattern: "vendor/**", "*.env", "config/*.yaml"
 //
-// Returns findings with Type=FindingTypeAdd and Purge=true.
+// Returns findings with Type=FindingTypeAdd. Membership in the manifest
+// is the intent — every returned finding is implicitly "to be purged".
 func FindBlobsForPath(repoPath, pattern string) ([]*domain.Finding, error) {
 	absPath, err := filepath.Abs(repoPath)
 	if err != nil {
@@ -86,7 +87,6 @@ func FindBlobsForPath(repoPath, pattern string) ([]*domain.Finding, error) {
 			Type:     domain.FindingTypeAdd,
 			Path:     data.path,
 			Commits:  data.commits,
-			Purge:    true,
 		})
 	}
 

@@ -1,4 +1,12 @@
-package scanner
+// Package gitquery centralises every read-only git-history operation
+// git-expunge performs: walking commits, listing historical paths,
+// looking up which paths a blob appears at, asking git which paths
+// would be ignored under current rules, and checking blob reachability.
+//
+// It sits below the domain-operation siblings (scanner, retroignore,
+// preview, safety) so they can consume it instead of each opening a
+// `*git.Repository` and re-implementing the same iteration patterns.
+package gitquery
 
 import (
 	"fmt"

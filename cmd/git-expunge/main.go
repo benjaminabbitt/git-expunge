@@ -1,126 +1,315 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
+	"github.com/benjaminabbitt/git-expunge/internal/gitquery"
 	"github.com/benjaminabbitt/git-expunge/internal/manifest"
 	"github.com/benjaminabbitt/git-expunge/internal/preview"
+	"github.com/benjaminabbitt/git-expunge/internal/report"
 	"github.com/benjaminabbitt/git-expunge/internal/rewriter"
 	"github.com/benjaminabbitt/git-expunge/internal/safety"
 	"github.com/benjaminabbitt/git-expunge/internal/scanner"
-	"github.com/benjaminabbitt/git-expunge/internal/ui/cli"
-	"github.com/benjaminabbitt/git-expunge/internal/ui/tui"
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
+)
+
+// exitCodeError carries a process exit code out of a cobra RunE so main
+// can map it to os.Exit. Used by `scan` to distinguish:
+//
+//	0 — success, nothing new added
+//	1 — success, new findings added (CI signal for "something to look at")
+//	2 — tool error (bad flag, git failure, missing repo, etc.)
+type exitCodeError struct {
+	code int
+	msg  string
+}
+
+func (e *exitCodeError) Error() string { return e.msg }
+
+// version is injected at build time via:
+//
+//	-ldflags="-X main.version=$(cat VERSION)"
+//
+// (see justfile `build` and `build-all` targets). Falls back to "dev"
+// for `go build` / `go install` invocations that don't set it.
+var version = "dev"
+
+// Canonical filenames git-expunge writes to disk. Use these constants
+// everywhere instead of typing the literal — keeps the manifest /
+// sidecar / markdown report names consistent across help text, code
+// paths, and tests.
+const (
+	// manifestFilename is the on-disk findings manifest, lives under
+	// <git-common-dir>/git-expunge/.
+	manifestFilename = "findings.json"
+	// sidecarFilename is the post-rewrite audit record consulted by
+	// `verify`, also under <git-common-dir>/git-expunge/.
+	sidecarFilename = "last-purged.json"
+	// reportFilename is the human-readable markdown report produced by
+	// `report generate`, written to the repo root.
+	reportFilename = "git-expunge.md"
+	// stateDirname is the subdirectory under .git/ where all
+	// git-expunge state lives.
+	stateDirname = "git-expunge"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "git-expunge [repo-path]",
-	Short: "Safely remove sensitive data and large files from Git history",
+	Use:     "git-expunge",
+	Short:   "Safely remove sensitive data and large files from Git history",
+	Version: version,
 	Long: `git-expunge is a user-friendly tool for removing accidentally committed
 secrets, API keys, binary files, and other sensitive data from your Git
 repository history.
 
 Unlike other tools, it prioritizes safety with full backup/restore capabilities
-and provides multiple interfaces (TUI, CLI, and report-based) for reviewing
-findings before making any destructive changes.
+and surfaces findings through plain-text commands you can pipe and grep.
 
-Run without arguments to launch the interactive TUI.`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: runUI,
+Repo selection: every subcommand operates on the current working directory by
+default. Use -C / --repo <path> to operate on a repository elsewhere (matching
+git's -C convention):
+
+  cd /path/to/repo
+  git-expunge scan              # operates on .
+  git-expunge list
+  git-expunge expunge --execute
+  git-expunge verify
+
+  git-expunge -C /elsewhere/repo scan
+  git-expunge --repo /elsewhere/repo list`,
+}
+
+// repoPathFlag returns the repo path resolved from --repo/-C (defaulting
+// to "."). All subcommands route their repo-path through this helper —
+// no subcommand takes a positional repo arg, so command-line parsing
+// doesn't depend on filesystem state.
+func repoPathFlag(cmd *cobra.Command) string {
+	if v, _ := cmd.Flags().GetString("repo"); v != "" {
+		return v
+	}
+	return "."
+}
+
+// detectorNames is the canonical set of detector identifiers accepted as
+// positional args to `scan`.
+var detectorNames = map[string]bool{
+	"binaries":   true,
+	"secrets":    true,
+	"large":      true,
+	"gitignored": true,
+	"all":        true,
 }
 
 var scanCmd = &cobra.Command{
-	Use:   "scan [repo-path]",
-	Short: "Scan repository for binaries and secrets",
-	Long: `Scan a Git repository's entire history for accidentally committed
-binaries and sensitive data (secrets, API keys, etc.).
+	Use:   "scan [detector...]",
+	Short: "Detect content for the manifest",
+	Long: `Scan history for content that should be removed. Each positional
+argument names a detector.
 
-Outputs a git-expunge-findings.json file that can be reviewed and edited before rewriting.`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: runScan,
+Detectors:
+  secrets    — gitleaks rules over blob content
+  gitignored — paths matching the repository's current gitignore rules
+  binaries   — MIME / magic-byte binary detection (any size)
+  large      — size-only detection (any MIME); see --size
+  all        — every detector above
+
+With no detector named, runs the safe defaults (secrets, gitignored).
+Multiple detectors share a single history walk where possible.
+
+Use -C / --repo to operate on a repository other than the current
+directory.
+
+Exit codes:
+  0  no new findings added (manifest unchanged)
+  1  one or more new findings added to the manifest
+  2  tool error (bad flag, git failure, etc.)`,
+	RunE:          runScan,
+	SilenceUsage:  true,
+	SilenceErrors: true,
+}
+
+// validateDetectors checks that every positional arg is a known detector
+// name. Returns an error naming the offending arg otherwise.
+func validateDetectors(args []string) error {
+	for _, d := range args {
+		if !detectorNames[d] {
+			return fmt.Errorf("unknown detector %q (valid: binaries, secrets, large, gitignored, all)", d)
+		}
+	}
+	return nil
+}
+
+// configFromDetectors builds a scanner.Config enabling exactly the named
+// detectors. With no detectors, returns scanner.DefaultConfig (the safe
+// default — secrets + gitignored only).
+func configFromDetectors(detectors []string, sizeThreshold int64, workers int) scanner.Config {
+	if len(detectors) == 0 {
+		c := scanner.DefaultConfig()
+		c.SizeThreshold = sizeThreshold
+		c.Workers = workers
+		return c
+	}
+	c := scanner.Config{SizeThreshold: sizeThreshold, Workers: workers}
+	for _, d := range detectors {
+		switch d {
+		case "all":
+			c.ScanBinaries = true
+			c.ScanSecrets = true
+			c.ScanLargeFiles = true
+			c.ScanGitignored = true
+		case "binaries":
+			c.ScanBinaries = true
+		case "secrets":
+			c.ScanSecrets = true
+		case "large":
+			c.ScanLargeFiles = true
+		case "gitignored":
+			c.ScanGitignored = true
+		}
+	}
+	return c
 }
 
 func runScan(cmd *cobra.Command, args []string) error {
-	// Get repo path
-	repoPath := "."
-	if len(args) > 0 {
-		repoPath = args[0]
+	if err := validateDetectors(args); err != nil {
+		return &exitCodeError{code: 2, msg: err.Error()}
 	}
+	detectors := args
+	repoPath := repoPathFlag(cmd)
 
-	// Get flags
-	scanSecrets, _ := cmd.Flags().GetBool("secrets")
-	scanBinaries, _ := cmd.Flags().GetBool("binaries")
-	sizeThresholdStr, _ := cmd.Flags().GetString("size-threshold")
+	sizeStr, _ := cmd.Flags().GetString("size")
 	outputPath, _ := cmd.Flags().GetString("output")
 	workers, _ := cmd.Flags().GetInt("workers")
+	emitJSON, _ := cmd.Flags().GetBool("json")
 
-	// If output not explicitly set, put manifest in repo root
-	if outputPath == "./git-expunge-findings.json" {
-		outputPath = filepath.Join(repoPath, "git-expunge-findings.json")
-	}
-
-	// Parse size threshold
-	sizeThreshold, err := parseSize(sizeThresholdStr)
-	if err != nil {
-		return fmt.Errorf("invalid size-threshold: %w", err)
-	}
-
-	// Configure scanner with progress reporting
-	if workers <= 0 {
-		workers = runtime.NumCPU()
-	}
-	config := scanner.Config{
-		ScanSecrets:   scanSecrets,
-		ScanBinaries:  scanBinaries,
-		SizeThreshold: sizeThreshold,
-		Workers:       workers,
-		ProgressFunc: func(blobsScanned, findingsCount int) {
-			fmt.Printf("\rScanning... %d blobs processed, %d findings", blobsScanned, findingsCount)
-		},
-	}
-
-	cmd.Printf("Scanning %s with %d workers...\n", repoPath, workers)
-
-	// Run scan
-	s := scanner.New(config)
-	result, err := s.Scan(repoPath)
-	fmt.Println() // Clear progress line
-	if err != nil {
-		return fmt.Errorf("scan failed: %w", err)
-	}
-
-	// Write manifest
-	if err := manifest.WriteJSON(result, outputPath); err != nil {
-		return fmt.Errorf("failed to write manifest: %w", err)
-	}
-
-	// Summary
-	binaryCount := 0
-	secretCount := 0
-	for _, f := range result {
-		switch f.Type {
-		case "binary":
-			binaryCount++
-		case "secret":
-			secretCount++
+	if outputPath == "" {
+		var err error
+		outputPath, err = manifestPathFor(repoPath)
+		if err != nil {
+			return &exitCodeError{code: 2, msg: fmt.Sprintf("resolve manifest path: %v", err)}
 		}
 	}
 
-	cmd.Printf("Found %d findings:\n", len(result))
-	cmd.Printf("  - Binaries: %d\n", binaryCount)
-	cmd.Printf("  - Secrets: %d\n", secretCount)
-	cmd.Printf("Manifest written to: %s\n", outputPath)
+	sizeThreshold, err := parseSize(sizeStr)
+	if err != nil {
+		return &exitCodeError{code: 2, msg: fmt.Sprintf("invalid --size: %v", err)}
+	}
 
+	if workers <= 0 {
+		workers = runtime.NumCPU()
+	}
+
+	config := configFromDetectors(detectors, sizeThreshold, workers)
+	// Progress reporter only when emitting human-readable output.
+	if !emitJSON {
+		config.ProgressFunc = func(blobsScanned, findingsCount int) {
+			fmt.Fprintf(cmd.ErrOrStderr(), "\rScanning... %d blobs processed, %d findings", blobsScanned, findingsCount)
+		}
+	}
+
+	if !emitJSON {
+		cmd.Printf("Scanning %s (%s)...\n", repoPath, summariseDetectors(config))
+	}
+
+	s := scanner.New(config)
+	result, err := s.Scan(repoPath)
+	if !emitJSON {
+		fmt.Fprintln(cmd.ErrOrStderr()) // clear progress line
+	}
+	if err != nil {
+		return &exitCodeError{code: 2, msg: fmt.Sprintf("scan failed: %v", err)}
+	}
+
+	// Read existing manifest (if any) so we can compute the delta.
+	var existing domain.Manifest
+	if _, statErr := os.Stat(outputPath); statErr == nil {
+		existing, err = manifest.ReadJSON(outputPath)
+		if err != nil {
+			return &exitCodeError{code: 2, msg: fmt.Sprintf("read existing manifest: %v", err)}
+		}
+	} else {
+		existing = domain.NewManifest()
+	}
+
+	// Compute new findings (hashes not previously in the manifest).
+	var newFindings []*domain.Finding
+	for h, f := range result {
+		if _, had := existing[h]; !had {
+			newFindings = append(newFindings, f)
+		}
+	}
+	added := existing.Merge(result)
+
+	if err := manifest.WriteJSON(existing, outputPath); err != nil {
+		return &exitCodeError{code: 2, msg: fmt.Sprintf("write manifest: %v", err)}
+	}
+
+	if emitJSON {
+		if newFindings == nil {
+			newFindings = []*domain.Finding{}
+		}
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(newFindings); err != nil {
+			return &exitCodeError{code: 2, msg: fmt.Sprintf("encode json: %v", err)}
+		}
+	} else {
+		printScanSummary(cmd, newFindings, len(existing), outputPath)
+	}
+
+	if added > 0 {
+		return &exitCodeError{code: 1, msg: ""}
+	}
 	return nil
+}
+
+func summariseDetectors(c scanner.Config) string {
+	var parts []string
+	if c.ScanSecrets {
+		parts = append(parts, "secrets")
+	}
+	if c.ScanGitignored {
+		parts = append(parts, "gitignored")
+	}
+	if c.ScanBinaries {
+		parts = append(parts, "binaries")
+	}
+	if c.ScanLargeFiles {
+		parts = append(parts, "large")
+	}
+	if len(parts) == 0 {
+		return "no detectors"
+	}
+	return strings.Join(parts, "+")
+}
+
+func printScanSummary(cmd *cobra.Command, added []*domain.Finding, manifestSize int, manifestPath string) {
+	byType := map[string]int{}
+	for _, f := range added {
+		byType[string(f.Type)]++
+	}
+	cmd.Printf("Added %d new finding(s) (manifest now has %d total).\n", len(added), manifestSize)
+	if len(added) > 0 {
+		var types []string
+		for t := range byType {
+			types = append(types, t)
+		}
+		sort.Strings(types)
+		for _, t := range types {
+			cmd.Printf("  %-10s %d\n", t, byType[t])
+		}
+	}
+	cmd.Printf("Manifest: %s\n", manifestPath)
 }
 
 // parseSize parses a size string like "100KB" to bytes.
@@ -197,27 +386,25 @@ var reportCmd = &cobra.Command{
 }
 
 var reportGenerateCmd = &cobra.Command{
-	Use:   "generate [repo-path]",
+	Use:   "generate",
 	Short: "Generate human-readable markdown report from manifest",
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.NoArgs,
 	RunE:  runReportGenerate,
 }
 
 func runReportGenerate(cmd *cobra.Command, args []string) error {
-	// Get repo path
-	repoPath := "."
-	if len(args) > 0 {
-		repoPath = args[0]
-	}
+	repoPath := repoPathFlag(cmd)
 
 	outputPath, _ := cmd.Flags().GetString("output")
 
-	// Input manifest is in repo root
-	inputPath := filepath.Join(repoPath, "git-expunge-findings.json")
+	inputPath, err := manifestPathFor(repoPath)
+	if err != nil {
+		return fmt.Errorf("resolve manifest path: %w", err)
+	}
 
 	// Default output to repo root
-	if outputPath == "./manifest.md" {
-		outputPath = filepath.Join(repoPath, "manifest.md")
+	if outputPath == "" {
+		outputPath = filepath.Join(repoPath, reportFilename)
 	}
 
 	// Read manifest
@@ -234,7 +421,7 @@ func runReportGenerate(cmd *cobra.Command, args []string) error {
 	defer f.Close()
 
 	// Generate report with previews
-	gen := manifest.NewReportGenerator(repoPath)
+	gen := report.NewGenerator(repoPath)
 
 	// Find shared blobs to enhance the report with warnings
 	var blobHashes []string
@@ -243,7 +430,7 @@ func runReportGenerate(cmd *cobra.Command, args []string) error {
 	}
 	if len(blobHashes) > 0 {
 		cmd.Println("Analyzing blob sharing across paths...")
-		if sharedBlobs, err := scanner.FindAllPathsForBlobs(repoPath, blobHashes); err == nil {
+		if sharedBlobs, err := gitquery.FindAllPathsForBlobs(repoPath, blobHashes); err == nil {
 			gen.SetSharedBlobs(sharedBlobs)
 			// Count how many blobs are shared
 			sharedCount := 0
@@ -272,20 +459,31 @@ func runReportGenerate(cmd *cobra.Command, args []string) error {
 }
 
 var reportReadCmd = &cobra.Command{
-	Use:   "read [manifest.md]",
-	Short: "Parse markdown report back to git-expunge-findings.json",
+	Use:   "read [report.md]",
+	Short: "Parse markdown report back into the findings manifest",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  runReportRead,
 }
 
 func runReportRead(cmd *cobra.Command, args []string) error {
-	// Get input path
-	inputPath := "./manifest.md"
+	repoPath := repoPathFlag(cmd)
+
+	// Input report path: explicit positional arg, otherwise the canonical
+	// default in the repo root.
+	inputPath := filepath.Join(repoPath, reportFilename)
 	if len(args) > 0 {
 		inputPath = args[0]
 	}
 
 	outputPath, _ := cmd.Flags().GetString("output")
+	if outputPath == "" {
+		// Default to the active manifest in the resolved repo.
+		mp, err := manifestPathFor(repoPath)
+		if err != nil {
+			return fmt.Errorf("resolve manifest path: %w", err)
+		}
+		outputPath = mp
+	}
 
 	// Open input file
 	f, err := os.Open(inputPath)
@@ -295,7 +493,7 @@ func runReportRead(cmd *cobra.Command, args []string) error {
 	defer f.Close()
 
 	// Parse report
-	m, err := manifest.ParseReport(f)
+	m, err := report.Parse(f)
 	if err != nil {
 		return fmt.Errorf("failed to parse report: %w", err)
 	}
@@ -306,117 +504,32 @@ func runReportRead(cmd *cobra.Command, args []string) error {
 	}
 
 	// Show summary
-	purgeCount := m.PurgeCount()
+	purgeCount := len(m)
 	cmd.Printf("Manifest written: %s\n", outputPath)
 	cmd.Printf("Total findings: %d, marked for purge: %d\n", len(m), purgeCount)
 
 	if purgeCount > 0 {
-		cmd.Printf("Next step: git-expunge rewrite --manifest %s\n", outputPath)
+		cmd.Printf("Next step: git-expunge expunge --manifest %s\n", outputPath)
 	}
 
 	return nil
 }
 
-var uiCmd = &cobra.Command{
-	Use:   "ui [repo-path]",
-	Short: "Launch interactive TUI for scanning, reviewing, and rewriting",
-	Args:  cobra.MaximumNArgs(1),
-	RunE:  runUI,
+var expungeCmd = &cobra.Command{
+	Use:   "expunge",
+	Short: "Rewrite history to permanently remove every blob in the manifest",
+	Long: `Apply the findings manifest by rewriting the repository's history
+to permanently remove the blobs it contains.
+
+Runs in dry-run mode by default. Pass --execute to actually perform the
+rewrite — a full backup archive is created next to the repo before any
+destructive operation.`,
+	Args: cobra.NoArgs,
+	RunE: runExpunge,
 }
 
-func runUI(cmd *cobra.Command, args []string) error {
-	// Get repo path
-	repoPath := "."
-	if len(args) > 0 {
-		repoPath = args[0]
-	}
-
-	// Manifest is in repo root
-	manifestPath := filepath.Join(repoPath, "git-expunge-findings.json")
-
-	// Get UI mode
-	uiMode, _ := cmd.Flags().GetString("mode")
-
-	// Read manifest if it exists, otherwise start with empty
-	var m domain.Manifest
-	if _, err := os.Stat(manifestPath); err == nil {
-		m, err = manifest.ReadJSON(manifestPath)
-		if err != nil {
-			return fmt.Errorf("failed to read manifest: %w", err)
-		}
-	} else {
-		m = domain.NewManifest()
-	}
-
-	var updatedManifest domain.Manifest
-
-	// Determine UI mode
-	useTUI := uiMode == "tui" || (uiMode == "" && term.IsTerminal(int(os.Stdin.Fd())))
-
-	if useTUI && uiMode != "cli" {
-		// Start in Browse mode if no manifest, Review mode if there are findings
-		startMode := tui.ModeBrowse
-		if len(m) > 0 {
-			startMode = tui.ModeReview
-		}
-
-		// Run TUI
-		result, saved, err := tui.Run(m, repoPath, startMode)
-		if err != nil {
-			return fmt.Errorf("TUI failed: %w", err)
-		}
-		updatedManifest = result
-
-		if !saved {
-			cmd.Println("Exited without saving.")
-			return nil
-		}
-	} else {
-		// Run CLI review
-		if len(m) == 0 {
-			cmd.Println("No findings in manifest. Run 'git-expunge scan' first or use TUI to browse files.")
-			return nil
-		}
-		reviewer := cli.NewReviewer(m, repoPath)
-		if err := reviewer.Run(); err != nil {
-			return fmt.Errorf("review failed: %w", err)
-		}
-		updatedManifest = reviewer.GetManifest()
-	}
-
-	// Save updated manifest
-	if err := manifest.WriteJSON(updatedManifest, manifestPath); err != nil {
-		return fmt.Errorf("failed to save manifest: %w", err)
-	}
-
-	cmd.Printf("\nManifest saved to: %s\n", manifestPath)
-
-	purgeCount := updatedManifest.PurgeCount()
-	if purgeCount > 0 {
-		cmd.Printf("Next step: git-expunge rewrite %s --execute\n", repoPath)
-	}
-
-	return nil
-}
-
-var rewriteCmd = &cobra.Command{
-	Use:   "rewrite [repo-path]",
-	Short: "Rewrite repository history to remove selected findings",
-	Long: `Rewrite the Git repository history to permanently remove blobs
-marked for purging in the manifest.
-
-By default, runs in dry-run mode. Use --execute to actually perform the rewrite.
-A full backup archive is created before any destructive operation.`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: runRewrite,
-}
-
-func runRewrite(cmd *cobra.Command, args []string) error {
-	// Get repo path
-	repoPath := "."
-	if len(args) > 0 {
-		repoPath = args[0]
-	}
+func runExpunge(cmd *cobra.Command, args []string) error {
+	repoPath := repoPathFlag(cmd)
 
 	// Get flags
 	manifestPath, _ := cmd.Flags().GetString("manifest")
@@ -431,7 +544,11 @@ func runRewrite(cmd *cobra.Command, args []string) error {
 	}
 
 	if manifestPath == "" {
-		manifestPath = filepath.Join(repoPath, "git-expunge-findings.json")
+		mp, err := manifestPathFor(repoPath)
+		if err != nil {
+			return fmt.Errorf("resolve manifest path: %w", err)
+		}
+		manifestPath = mp
 	}
 
 	// Read manifest
@@ -441,7 +558,7 @@ func runRewrite(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get blobs to purge
-	blobsToPurge := m.BlobsToPurge()
+	blobsToPurge := m.Blobs()
 	if len(blobsToPurge) == 0 {
 		cmd.Println("No items marked for purging. Use 'git-expunge review' or 'git-expunge report' to select items.")
 		return nil
@@ -451,12 +568,12 @@ func runRewrite(cmd *cobra.Command, args []string) error {
 
 	// Check for shared blobs and filter to safe-only
 	cmd.Println("Checking for shared blob content...")
-	allPaths, err := scanner.FindAllPathsForBlobs(repoPath, blobsToPurge)
+	allPaths, err := gitquery.FindAllPathsForBlobs(repoPath, blobsToPurge)
 	if err != nil {
 		cmd.Printf("Warning: could not check for shared blobs: %v\n", err)
 	} else {
 		// Filter to only blobs where ALL paths are marked for purge
-		safeToPurge, skipped := m.SafeBlobsToPurge(allPaths)
+		safeToPurge, skipped := m.SafeBlobs(allPaths)
 
 		if len(skipped) > 0 {
 			yellow := color.New(color.FgYellow, color.Bold)
@@ -558,9 +675,33 @@ func runRewrite(cmd *cobra.Command, args []string) error {
 
 	if dryRun {
 		cmd.Println("\nThis was a dry run. To actually rewrite history, run:")
-		cmd.Printf("  git-expunge rewrite --manifest %s --execute\n", manifestPath)
+		cmd.Println("  git-expunge expunge --execute")
 	} else {
+		// Move the purged entries out of the active manifest and into
+		// the audit sidecar under .git/git-expunge/last-purged.json.
+		// The sidecar is what `verify` consults to confirm the rewrite
+		// actually removed those blobs; the main manifest is cleaned
+		// so subsequent reads don't keep showing them queued.
+		sidecar := domain.NewManifest()
+		for _, hash := range blobsToPurge {
+			if f, ok := m[hash]; ok {
+				sidecar[hash] = f
+				delete(m, hash)
+			}
+		}
+		sidecarPath, err := purgedSidecarPath(repoPath)
+		if err != nil {
+			return fmt.Errorf("resolve sidecar path: %w", err)
+		}
+		if err := manifest.WriteJSON(sidecar, sidecarPath); err != nil {
+			return fmt.Errorf("failed to write purged sidecar: %w", err)
+		}
+		if err := manifest.WriteJSON(m, manifestPath); err != nil {
+			return fmt.Errorf("failed to update manifest after rewrite: %w", err)
+		}
+
 		cmd.Println("\nRepository history has been rewritten.")
+		cmd.Printf("Recorded %d purged entr(ies) for verification.\n", len(sidecar))
 		cmd.Println("Run 'git-expunge verify' to confirm purged items are unreachable.")
 	}
 
@@ -568,45 +709,62 @@ func runRewrite(cmd *cobra.Command, args []string) error {
 }
 
 var verifyCmd = &cobra.Command{
-	Use:   "verify [repo-path]",
+	Use:   "verify",
 	Short: "Verify purged items are unreachable in repository",
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.NoArgs,
 	RunE:  runVerify,
 }
 
 func runVerify(cmd *cobra.Command, args []string) error {
-	// Get repo path
-	repoPath := "."
-	if len(args) > 0 {
-		repoPath = args[0]
-	}
+	repoPath := repoPathFlag(cmd)
 
 	manifestPath, _ := cmd.Flags().GetString("manifest")
-	if manifestPath == "" {
-		manifestPath = filepath.Join(repoPath, "git-expunge-findings.json")
+
+	// verify checks the post-rewrite sidecar — the authoritative record
+	// of what was actually expunged. An explicit --manifest flag points
+	// at a specific file (sidecar or otherwise); without it we read the
+	// default sidecar. We deliberately do NOT fall back to the main
+	// findings manifest: a Purge=true flag there means "the user intends
+	// to remove this," not "this was removed," and verifying intent is
+	// meaningless.
+	source := manifestPath
+	if source == "" {
+		sp, err := purgedSidecarPath(repoPath)
+		if err != nil {
+			return fmt.Errorf("resolve sidecar path: %w", err)
+		}
+		source = sp
 	}
 
-	// Read manifest
-	m, err := manifest.ReadJSON(manifestPath)
+	m, err := manifest.ReadJSON(source)
 	if err != nil {
-		return fmt.Errorf("failed to read manifest: %w", err)
+		if os.IsNotExist(err) {
+			cmd.Printf("No purged-blobs record found at %s.\n", source)
+			cmd.Println("Run 'git-expunge expunge --execute' first; verify reads the sidecar it writes.")
+			return nil
+		}
+		return fmt.Errorf("failed to read %s: %w", source, err)
+	}
+	blobsToPurge := make([]string, 0, len(m))
+	for hash := range m {
+		blobsToPurge = append(blobsToPurge, hash)
 	}
 
-	// Get blobs that were supposed to be purged
-	blobsToPurge := m.BlobsToPurge()
 	if len(blobsToPurge) == 0 {
-		cmd.Println("No items were marked for purging in manifest.")
+		cmd.Printf("No purged blobs recorded in %s.\n", source)
 		return nil
 	}
+	cmd.Printf("Source: %s\n", source)
 
 	cmd.Printf("Verifying %d blobs are unreachable...\n", len(blobsToPurge))
 
-	// Check each blob
 	var stillReachable []string
 	for _, hash := range blobsToPurge {
-		// Use git cat-file to check if object exists and is reachable
-		checkCmd := fmt.Sprintf("git -C %s cat-file -e %s 2>/dev/null", repoPath, hash)
-		if err := runGitCommand(checkCmd); err == nil {
+		reachable, err := gitquery.IsReachable(repoPath, hash)
+		if err != nil {
+			return fmt.Errorf("checking blob %s: %w", hash, err)
+		}
+		if reachable {
 			stillReachable = append(stillReachable, hash)
 		}
 	}
@@ -635,44 +793,32 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("%d blobs still reachable", len(stillReachable))
 }
 
-func runGitCommand(command string) error {
-	// Simple shell execution for git commands
-	cmd := exec.Command("sh", "-c", command)
-	return cmd.Run()
-}
-
 var restoreCmd = &cobra.Command{
-	Use:   "restore [repo-path]",
+	Use:   "restore",
 	Short: "Restore repository from backup archive",
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.NoArgs,
 	RunE:  runRestore,
 }
 
 var addCmd = &cobra.Command{
-	Use:   "add <path>... [flags]",
+	Use:   "add <glob>...",
 	Short: "Add files or directories to the manifest for removal",
-	Long: `Add files or directories to be removed from Git history.
+	Long: `Add files or directories to be removed from Git history. Arguments
+are literal paths or glob patterns:
 
-Paths can be literal file paths or glob patterns:
-  git-expunge add vendor/secrets.json .        # Exact path
-  git-expunge add "*.env" .                    # Glob pattern (quote to prevent shell expansion)
-  git-expunge add "vendor/**" .                # Double-star glob for recursive match
+  git-expunge add vendor/secrets.json    # exact path
+  git-expunge add "*.env"                # glob (quote to prevent shell expansion)
+  git-expunge add "vendor/**"            # double-star recursive glob
 
-When using glob patterns, quote them to prevent shell expansion and allow
-git-expunge to search through Git history for matching paths.
-
-The last argument is the repository path (defaults to current directory).`,
+Use -C / --repo to operate on a repository other than the current
+directory.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runAdd,
 }
 
 
 func runRestore(cmd *cobra.Command, args []string) error {
-	// Get destination path
-	destPath := "."
-	if len(args) > 0 {
-		destPath = args[0]
-	}
+	destPath := repoPathFlag(cmd)
 
 	archivePath, _ := cmd.Flags().GetString("archive")
 	listBackups, _ := cmd.Flags().GetBool("list")
@@ -724,27 +870,16 @@ func runRestore(cmd *cobra.Command, args []string) error {
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
-	// Parse arguments: paths are all args except the last one which is the repo path
-	// Unless there's only one arg, in which case it's the path and repo is "."
-	var patterns []string
-	repoPath := "."
-
-	if len(args) == 1 {
-		patterns = args
-	} else {
-		// Check if last arg looks like a repo path (contains .git or is a directory)
-		lastArg := args[len(args)-1]
-		if isRepoPath(lastArg) {
-			repoPath = lastArg
-			patterns = args[:len(args)-1]
-		} else {
-			patterns = args
-		}
-	}
+	patterns := args
+	repoPath := repoPathFlag(cmd)
 
 	manifestPath, _ := cmd.Flags().GetString("manifest")
 	if manifestPath == "" {
-		manifestPath = filepath.Join(repoPath, "git-expunge-findings.json")
+		mp, err := manifestPathFor(repoPath)
+		if err != nil {
+			return fmt.Errorf("resolve manifest path: %w", err)
+		}
+		manifestPath = mp
 	}
 
 	// Load existing manifest or create new one
@@ -767,7 +902,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	// Process each pattern
 	totalAdded := 0
 	for _, pattern := range patterns {
-		findings, err := scanner.FindBlobsForPath(repoPath, pattern)
+		findings, err := gitquery.FindBlobsForPath(repoPath, pattern)
 		if err != nil {
 			return fmt.Errorf("failed to find blobs for '%s': %w", pattern, err)
 		}
@@ -802,35 +937,32 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	cmd.Printf("\nManifest saved: %s\n", manifestPath)
-	cmd.Printf("Total: %d findings (%d marked for purge)\n", len(m), m.PurgeCount())
+	cmd.Printf("Total: %d findings (%d marked for purge)\n", len(m), len(m))
 
 	if totalAdded > 0 {
-		cmd.Printf("\nNext step: git-expunge rewrite %s --execute\n", repoPath)
+		cmd.Println("\nNext step: git-expunge expunge --execute")
 	}
 
 	return nil
 }
 
 var previewCmd = &cobra.Command{
-	Use:   "preview <blob-hash> [repo-path]",
+	Use:   "preview <blob-hash>",
 	Short: "Preview the content of a git blob",
 	Long: `Preview the content of a git blob by its hash.
 
 Shows text content for text files, or a hex dump for binary files.
 Useful for inspecting blobs before deciding whether to purge them.
 
-The blob hash can be found in the manifest or report files.`,
-	Args: cobra.RangeArgs(1, 2),
+The blob hash can be found in the manifest or report files. Use -C /
+--repo to operate on a repository other than the current directory.`,
+	Args: cobra.ExactArgs(1),
 	RunE: runPreview,
 }
 
 func runPreview(cmd *cobra.Command, args []string) error {
-	// Get blob hash and optional repo path
 	blobHash := args[0]
-	repoPath := "."
-	if len(args) > 1 {
-		repoPath = args[1]
-	}
+	repoPath := repoPathFlag(cmd)
 
 	// Get flags
 	lines, _ := cmd.Flags().GetInt("lines")
@@ -877,58 +1009,230 @@ func runPreview(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// isRepoPath checks if the given path looks like a repository path
-func isRepoPath(path string) bool {
-	// Check if it's a directory
-	info, err := os.Stat(path)
+// listCmd, searchCmd, removeCmd, summaryCmd are the read/write surface
+// for the on-disk manifest. They all print tab-separated lines so callers
+// can filter with grep/awk; there's no query DSL.
+
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "Print every manifest entry as a tab-separated line",
+	Long: `Tab-separated columns: type, 7-char hash, size, path.
+Filter with grep/awk:
+
+  git-expunge list | grep secret
+  git-expunge list | awk -F'\t' '$3 > 1048576 { print }'`,
+	Args: cobra.NoArgs,
+	RunE: runList,
+}
+
+var searchCmd = &cobra.Command{
+	Use:   "search <glob>...",
+	Short: "Preview history-glob matches without writing the manifest",
+	Long: `Walks history for blobs whose paths match the given glob(s)
+and prints them in list-format. Does not touch the manifest — use
+'git-expunge add' for that.`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: runSearch,
+}
+
+var removeCmd = &cobra.Command{
+	Use:   "remove <glob>...",
+	Short: "Drop manifest entries whose Path matches one or more globs",
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runRemove,
+}
+
+var summaryCmd = &cobra.Command{
+	Use:   "summary",
+	Short: "Print counts of manifest entries grouped by type",
+	Args:  cobra.NoArgs,
+	RunE:  runSummary,
+}
+
+// gitExpungeDir returns <git-common-dir>/<stateDirname> — the directory
+// where every persistent file git-expunge writes lives. Uses
+// `git rev-parse --git-common-dir` under the hood so normal repos,
+// linked worktrees, and bare repos all resolve correctly.
+func gitExpungeDir(repoPath string) (string, error) {
+	commonDir, err := gitquery.GitCommonDir(repoPath)
 	if err != nil {
-		return false
+		return "", err
 	}
-	if !info.IsDir() {
-		return false
+	return filepath.Join(commonDir, stateDirname), nil
+}
+
+// manifestPathFor returns the path to the on-disk findings manifest.
+// Lives under <git-common-dir>/<stateDirname>/<manifestFilename> so it
+// travels with the repo, doesn't pollute the working tree, and never
+// needs to be gitignored.
+func manifestPathFor(repoPath string) (string, error) {
+	dir, err := gitExpungeDir(repoPath)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, manifestFilename), nil
+}
+
+// purgedSidecarPath returns the path of the post-expunge audit sidecar
+// — the record of what `expunge --execute` actually removed. `verify`
+// consults this file to confirm the blobs are unreachable.
+func purgedSidecarPath(repoPath string) (string, error) {
+	dir, err := gitExpungeDir(repoPath)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, sidecarFilename), nil
+}
+
+func readManifestOrEmpty(path string) (domain.Manifest, error) {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return domain.NewManifest(), nil
+	}
+	return manifest.ReadJSON(path)
+}
+
+func writeFindingLine(cmd *cobra.Command, f *domain.Finding) {
+	short := f.BlobHash
+	if len(short) > 7 {
+		short = short[:7]
+	}
+	// list / search produce structured data that callers pipe through
+	// grep/awk — write to stdout, not cobra's stderr-defaulted cmd.Printf.
+	fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%d\t%s\n", f.Type, short, f.Size, f.Path)
+}
+
+func sortedFindings(m domain.Manifest) []*domain.Finding {
+	out := make([]*domain.Finding, 0, len(m))
+	for _, f := range m {
+		out = append(out, f)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out
+}
+
+func runList(cmd *cobra.Command, args []string) error {
+	repoPath := repoPathFlag(cmd)
+	mPath, err := manifestPathFor(repoPath)
+	if err != nil {
+		return err
+	}
+	m, err := readManifestOrEmpty(mPath)
+	if err != nil {
+		return err
+	}
+	for _, f := range sortedFindings(m) {
+		writeFindingLine(cmd, f)
+	}
+	return nil
+}
+
+func runSearch(cmd *cobra.Command, args []string) error {
+	patterns := args
+	repoPath := repoPathFlag(cmd)
+	var findings []*domain.Finding
+	for _, p := range patterns {
+		got, err := gitquery.FindBlobsForPath(repoPath, p)
+		if err != nil {
+			return fmt.Errorf("search %q: %w", p, err)
+		}
+		findings = append(findings, got...)
+	}
+	sort.Slice(findings, func(i, j int) bool { return findings[i].Path < findings[j].Path })
+	for _, f := range findings {
+		writeFindingLine(cmd, f)
+	}
+	return nil
+}
+
+func runRemove(cmd *cobra.Command, args []string) error {
+	patterns := args
+	repoPath := repoPathFlag(cmd)
+	mPath, err := manifestPathFor(repoPath)
+	if err != nil {
+		return err
+	}
+	m, err := readManifestOrEmpty(mPath)
+	if err != nil {
+		return err
 	}
 
-	// Check if it has a .git directory or is a bare repo
-	if _, err := os.Stat(filepath.Join(path, ".git")); err == nil {
-		return true
-	}
-	if _, err := os.Stat(filepath.Join(path, "objects")); err == nil {
-		return true
+	removed := 0
+	for hash, f := range m {
+		for _, p := range patterns {
+			match, matchErr := doublestar.Match(p, f.Path)
+			if matchErr != nil {
+				return fmt.Errorf("invalid glob %q: %w", p, matchErr)
+			}
+			if !match && f.Path != p {
+				continue
+			}
+			delete(m, hash)
+			removed++
+			break
+		}
 	}
 
-	// If it's "." or "..", treat it as a repo path
-	if path == "." || path == ".." {
-		return true
+	if err := manifest.WriteJSON(m, mPath); err != nil {
+		return fmt.Errorf("write manifest: %w", err)
 	}
+	cmd.Printf("Removed %d entr(ies). Manifest now has %d.\n", removed, len(m))
+	return nil
+}
 
-	return false
+func runSummary(cmd *cobra.Command, args []string) error {
+	repoPath := repoPathFlag(cmd)
+	mPath, err := manifestPathFor(repoPath)
+	if err != nil {
+		return err
+	}
+	m, err := readManifestOrEmpty(mPath)
+	if err != nil {
+		return err
+	}
+	byType := map[string]int{}
+	for _, f := range m {
+		byType[string(f.Type)]++
+	}
+	// summary is structured data callers may pipe; write to stdout, not
+	// cobra's stderr-defaulted cmd.Printf.
+	out := cmd.OutOrStdout()
+	fmt.Fprintf(out, "Total: %d\n", len(m))
+	var types []string
+	for t := range byType {
+		types = append(types, t)
+	}
+	sort.Strings(types)
+	for _, t := range types {
+		fmt.Fprintf(out, "  %-10s %d\n", t, byType[t])
+	}
+	return nil
 }
 
 func init() {
+	// Persistent repo-selection flag (matches git's -C convention). Every
+	// subcommand resolves the repo via repoPathFlag — no subcommand takes
+	// a positional repo, so argument parsing doesn't depend on the
+	// filesystem.
+	rootCmd.PersistentFlags().StringP("repo", "C", "", "Operate on the repository at this path (default: current directory)")
+
 	// scan flags
-	scanCmd.Flags().Bool("secrets", true, "Scan for secrets")
-	scanCmd.Flags().Bool("binaries", true, "Scan for binaries")
-	scanCmd.Flags().String("size-threshold", "100KB", "Minimum file size for binary detection")
-	scanCmd.Flags().StringP("output", "o", "./git-expunge-findings.json", "Output manifest path")
-	scanCmd.Flags().String("config", "", "Config file for custom rules")
+	scanCmd.Flags().String("size", "100KB", "Size threshold for the `large` detector (e.g. 100KB, 1MB)")
+	scanCmd.Flags().StringP("output", "o", "", fmt.Sprintf("Manifest path (default: <repo>/.git/%s/%s)", stateDirname, manifestFilename))
+	scanCmd.Flags().Bool("json", false, "Emit new findings as a JSON array on stdout; suppress the human-readable summary")
 	scanCmd.Flags().IntP("workers", "j", 0, "Number of parallel workers (default: number of CPUs)")
 
 	// report subcommands
-	reportGenerateCmd.Flags().StringP("output", "o", "./manifest.md", "Output path")
-	reportReadCmd.Flags().StringP("output", "o", "./git-expunge-findings.json", "Output path")
+	reportGenerateCmd.Flags().StringP("output", "o", "", fmt.Sprintf("Output path (default: <repo>/%s)", reportFilename))
+	reportReadCmd.Flags().StringP("output", "o", "", fmt.Sprintf("Manifest path (default: <repo>/.git/%s/%s)", stateDirname, manifestFilename))
 	reportCmd.AddCommand(reportGenerateCmd)
 	reportCmd.AddCommand(reportReadCmd)
 
-	// ui flags (on both root and ui commands)
-	rootCmd.Flags().String("mode", "", "UI mode: tui, cli (default: tui if terminal)")
-	uiCmd.Flags().String("mode", "", "UI mode: tui, cli (default: tui if terminal)")
-
 	// rewrite flags
-	rewriteCmd.Flags().String("manifest", "", "Manifest file with purge selections")
-	rewriteCmd.Flags().Bool("dry-run", true, "Show what would be done without making changes")
-	rewriteCmd.Flags().Bool("execute", false, "Actually perform the rewrite")
-	rewriteCmd.Flags().String("backup-dir", "", "Directory for archive backup (default: parent of repo)")
-	rewriteCmd.Flags().Bool("skip-backup", false, "Skip backup (dangerous, requires confirmation)")
+	expungeCmd.Flags().String("manifest", "", "Manifest file with purge selections")
+	expungeCmd.Flags().Bool("dry-run", true, "Show what would be done without making changes")
+	expungeCmd.Flags().Bool("execute", false, "Actually perform the rewrite")
+	expungeCmd.Flags().String("backup-dir", "", "Directory for archive backup (default: parent of repo)")
+	expungeCmd.Flags().Bool("skip-backup", false, "Skip backup (dangerous, requires confirmation)")
 
 	// verify flags
 	verifyCmd.Flags().String("manifest", "", "Manifest to check against")
@@ -938,7 +1242,7 @@ func init() {
 	restoreCmd.Flags().Bool("list", false, "List available backups")
 
 	// add flags
-	addCmd.Flags().String("manifest", "", "Manifest file path (default: <repo>/git-expunge-findings.json)")
+	addCmd.Flags().String("manifest", "", fmt.Sprintf("Manifest file path (default: <repo>/.git/%s/%s)", stateDirname, manifestFilename))
 
 	// preview flags
 	previewCmd.Flags().IntP("lines", "n", 0, "Limit output to N lines (0 = no limit)")
@@ -946,9 +1250,12 @@ func init() {
 
 	// add commands to root
 	rootCmd.AddCommand(scanCmd)
+	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(searchCmd)
+	rootCmd.AddCommand(removeCmd)
+	rootCmd.AddCommand(summaryCmd)
 	rootCmd.AddCommand(reportCmd)
-	rootCmd.AddCommand(uiCmd)
-	rootCmd.AddCommand(rewriteCmd)
+	rootCmd.AddCommand(expungeCmd)
 	rootCmd.AddCommand(verifyCmd)
 	rootCmd.AddCommand(restoreCmd)
 	rootCmd.AddCommand(addCmd)
@@ -956,7 +1263,17 @@ func init() {
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+	err := rootCmd.Execute()
+	if err == nil {
+		return
 	}
+	var ec *exitCodeError
+	if errors.As(err, &ec) {
+		if ec.msg != "" {
+			fmt.Fprintln(os.Stderr, ec.msg)
+		}
+		os.Exit(ec.code)
+	}
+	// Default: cobra has already printed the error.
+	os.Exit(1)
 }

@@ -1,4 +1,8 @@
-package manifest
+// Package report renders manifests into human-readable formats (markdown
+// today) and parses those formats back. It sits above internal/manifest
+// (which owns persistence) and below the UI: the cobra `report` commands
+// and the TUI's export action consume it; no sibling layer does.
+package report
 
 import (
 	"bufio"
@@ -13,18 +17,18 @@ import (
 )
 
 // ReportGenerator generates markdown reports with previews.
-type ReportGenerator struct {
+type Generator struct {
 	previewGen    *preview.Generator
 	sharedBlobs   map[string][]string // blob hash -> all paths where it appears
 }
 
 // NewReportGenerator creates a report generator with preview support.
-func NewReportGenerator(repoPath string) *ReportGenerator {
+func NewGenerator(repoPath string) *Generator {
 	var previewGen *preview.Generator
 	if repoPath != "" {
 		previewGen, _ = preview.NewGenerator(repoPath)
 	}
-	return &ReportGenerator{
+	return &Generator{
 		previewGen:  previewGen,
 		sharedBlobs: make(map[string][]string),
 	}
@@ -32,18 +36,19 @@ func NewReportGenerator(repoPath string) *ReportGenerator {
 
 // SetSharedBlobs sets the shared blob information for enhanced reports.
 // This maps blob hashes to all paths where that blob appears.
-func (g *ReportGenerator) SetSharedBlobs(sharedBlobs map[string][]string) {
+func (g *Generator) SetSharedBlobs(sharedBlobs map[string][]string) {
 	g.sharedBlobs = sharedBlobs
 }
 
-// GenerateReport generates a human-readable markdown report from a manifest.
-// Deprecated: Use NewReportGenerator(repoPath).Generate() for preview support.
-func GenerateReport(manifest domain.Manifest, w io.Writer) error {
-	return NewReportGenerator("").Generate(manifest, w)
+// FromManifest is the package-level shortcut for generating a report
+// without a preview source. Use NewGenerator(repoPath).Generate() when
+// you want previews.
+func FromManifest(manifest domain.Manifest, w io.Writer) error {
+	return NewGenerator("").Generate(manifest, w)
 }
 
 // Generate generates a human-readable markdown report from a manifest.
-func (g *ReportGenerator) Generate(manifest domain.Manifest, w io.Writer) error {
+func (g *Generator) Generate(manifest domain.Manifest, w io.Writer) error {
 	// Sort findings by type, then by path for consistent output
 	var binaries, secrets []*domain.Finding
 	for _, f := range manifest {
@@ -99,15 +104,10 @@ func (g *ReportGenerator) Generate(manifest domain.Manifest, w io.Writer) error 
 	return nil
 }
 
-func (g *ReportGenerator) writeFinding(w io.Writer, f *domain.Finding) error {
-	// Checkbox
-	checkbox := "[ ]"
-	if f.Purge {
-		checkbox = "[x]"
-	}
-
-	// Header with path and checkbox
-	fmt.Fprintf(w, "### %s %s\n\n", checkbox, f.Path)
+func (g *Generator) writeFinding(w io.Writer, f *domain.Finding) error {
+	// Header with path. Every entry in the manifest will be purged on the
+	// next rewrite, so there's no per-entry flag to render.
+	fmt.Fprintf(w, "### %s\n\n", f.Path)
 
 	// Blob hash (required for parsing back)
 	fmt.Fprintf(w, "- **Blob:** `%s`\n", f.BlobHash)
@@ -218,15 +218,18 @@ func shortHash(hash string) string {
 }
 
 // ParseReport parses a markdown report back into a manifest.
-func ParseReport(r io.Reader) (domain.Manifest, error) {
+func Parse(r io.Reader) (domain.Manifest, error) {
 	manifest := domain.NewManifest()
 	scanner := bufio.NewScanner(r)
 
 	var currentFinding *domain.Finding
 	var currentType domain.FindingType
 
-	// Regex patterns
-	headerPattern := regexp.MustCompile(`^###\s+\[([ xX])\]\s+(.+)$`)
+	// Regex patterns. The header tolerates an optional `[ ]`/`[x]`
+	// checkbox for backwards compatibility with older reports, but the
+	// checkbox value is ignored — every entry in the parsed manifest is
+	// implicitly to be purged.
+	headerPattern := regexp.MustCompile(`^###\s+(?:\[[ xX]\]\s+)?(.+)$`)
 	blobPattern := regexp.MustCompile(`^\s*-\s+\*\*Blob:\*\*\s+` + "`" + `([a-f0-9]+)` + "`")
 	sizePattern := regexp.MustCompile(`^\s*-\s+\*\*Size:\*\*\s+(.+)$`)
 	typePattern := regexp.MustCompile(`^\s*-\s+\*\*Type:\*\*\s+(.+)$`)
@@ -252,13 +255,11 @@ func ParseReport(r io.Reader) (domain.Manifest, error) {
 				manifest.Add(currentFinding)
 			}
 
-			purge := strings.ToLower(matches[1]) == "x"
-			path := strings.TrimSpace(matches[2])
+			path := strings.TrimSpace(matches[1])
 
 			currentFinding = &domain.Finding{
-				Type:  currentType,
-				Path:  path,
-				Purge: purge,
+				Type: currentType,
+				Path: path,
 			}
 			continue
 		}

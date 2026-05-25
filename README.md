@@ -4,30 +4,83 @@
 [![Release](https://img.shields.io/github/v/release/benjaminabbitt/git-expunge)](https://github.com/benjaminabbitt/git-expunge/releases/latest)
 [![License](https://img.shields.io/github/license/benjaminabbitt/git-expunge)](LICENSE)
 
-> Safely remove sensitive data and large files from Git history
+> Retroactively clean Git history against your current `.gitignore`, plus remove secrets, binaries, and oversized blobs — safely.
 
 > [!WARNING]
 > **Pre-release software** - While git-expunge has been successfully used on real repositories, it is still in early development. **Always back up your entire repository before using this tool.** git-expunge creates automatic backups before rewriting history, but an independent backup is strongly recommended. History rewriting is a destructive operation that cannot be undone.
 
-**git-expunge** is a user-friendly tool for removing accidentally committed secrets, API keys, binary files, and other sensitive data from your Git repository history. Unlike other tools, it prioritizes safety with full backup/restore capabilities and provides multiple interfaces for reviewing findings before making any destructive changes.
+**git-expunge** is a stateless CLI for removing things that should never have been committed in the first place. Its headline use case: **retroactively apply your current `.gitignore` to your entire history**. Files that are ignored today were almost always ignored "after the fact" — they leaked in early and the `.gitignore` got patched later. git-expunge walks history, asks `git check-ignore` what would be ignored under today's rules, and lets you remove anything that matches in a single audited rewrite.
+
+It also runs gitleaks for secret detection, plus optional binary and large-file detectors. Findings land in a JSON manifest under `.git/git-expunge/findings.json` (so the working tree stays clean); `git-expunge list` renders it as tab-separated rows you can pipe through `grep`/`awk`, and `remove` lets you curate by glob before the rewrite.
+
+## Retroactively scrub everything your `.gitignore` would have caught
+
+This is the workflow git-expunge is built around. Run it on any repo where the `.gitignore` was added (or hardened) after files had already been committed — almost every repo, in practice.
+
+```bash
+cd /path/to/repo
+
+# 1. Make absolutely sure you have an independent backup.
+#    git-expunge will make its own archive too, but trust nothing.
+git bundle create ../$(basename $PWD)-pre-expunge.bundle --all
+
+# 2. Build a manifest of every historical blob whose path is ignored today.
+#    Default scan = secrets + gitignored, so secrets get caught in the same pass.
+git-expunge scan
+#   → writes .git/git-expunge/findings.json
+#   → exits 1 if anything was added (CI-friendly)
+
+# 3. Eyeball the manifest. `list` prints tab-separated rows
+#    (type, hash, size, path) from the on-disk JSON manifest.
+git-expunge list | head -40
+git-expunge summary
+
+# 4. Drop false positives by glob. The manifest is just JSON,
+#    and `remove` is the curated way to prune it.
+git-expunge remove "vendor/**" "third_party/**"
+
+# 5. Dry-run the expunge. Nothing is touched yet.
+git-expunge expunge
+
+# 6. Execute. Creates a full backup archive next to the repo first.
+git-expunge expunge --execute
+
+# 7. Verify the bad blobs are unreachable in the new history.
+git-expunge verify
+
+# 8. Force-push (you must coordinate with collaborators — every
+#    contributor has to re-clone afterwards).
+git push --force --all
+git push --force --tags
+```
+
+The expected day-one outcome on a long-lived repo: `scan` flags a pile of legitimate-but-historical `.env` files, build artifacts, log files, and IDE droppings; `remove` lets you cut down to the actual problem set; the rewrite cleans them out for good.
+
+> [!IMPORTANT]
+> Rewriting history is a coordinated, destructive operation. Every collaborator must re-clone after a force-push. Don't run this on a repo with many active contributors without a plan.
+
+## Other use cases
+
+| Scenario                                                                            | Command                                  |
+| ----------------------------------------------------------------------------------- | ---------------------------------------- |
+| Remove accidentally committed `.env` with DB passwords                              | `git-expunge scan secrets`               |
+| Delete a specific file or glob across all history                                   | `git-expunge add "vendor/secrets.json" .` |
+| Purge large binary blobs from history                                               | `git-expunge scan large --size 5MB`      |
+| Drop every binary file (any size, any MIME) — e.g. checking-in build artifacts      | `git-expunge scan binaries`              |
+| Run everything at once                                                              | `git-expunge scan all`                   |
+| Use in CI to fail the build when a new secret lands                                 | `git-expunge scan secrets --json` (exit 1 = fresh finding) |
 
 ## Why git-expunge?
 
-| Feature | git-expunge | BFG | git-filter-repo |
-|---------|-------------|-----|-----------------|
-| Language | Go (single binary) | Java | Python |
-| Full backup | Yes (archive) | No | No |
-| Secret detection | Built-in (gitleaks) | No | No |
-| Binary detection | Built-in | Manual | Manual |
-| Interactive review | TUI + CLI + Report | No | No |
-| Dry-run by default | Yes | No | Yes |
-
-## Common Use Cases
-
-- **Remove accidentally committed `.env` files** with database passwords
-- **Delete AWS keys, API tokens** from repository history
-- **Purge large binary files** (builds, assets, compiled artifacts)
-- **Clean up repository** before making it public or open source
+| Feature                | git-expunge          | BFG    | git-filter-repo |
+| ---------------------- | -------------------- | ------ | --------------- |
+| Language               | Go (single binary)   | Java   | Python          |
+| Full backup            | Yes (archive)        | No     | No              |
+| Secret detection       | Built-in (gitleaks)  | No     | No              |
+| Binary detection       | Built-in (opt-in)    | Manual | Manual          |
+| **Gitignore replay**   | **Built-in**         | **No** | **No**          |
+| Dry-run by default     | Yes                  | No     | Yes             |
+| CI-friendly exit codes | Yes (0 / 1 / 2)      | No     | Partial         |
 
 ## Installation
 
@@ -71,180 +124,223 @@ go install github.com/benjaminabbitt/git-expunge/cmd/git-expunge@latest
 
 Download from the [releases page](https://github.com/benjaminabbitt/git-expunge/releases) - binaries are statically linked with no runtime dependencies.
 
-## Quick Start
+## Quick start
 
 ```bash
-# Launch interactive TUI - browse files, scan for secrets, review, and rewrite
 cd /path/to/repo
-git-expunge
 
-# Or use CLI commands:
-git-expunge scan .                # Scan for secrets and binaries
-git-expunge add "*.env" .         # Add specific files/patterns to remove
-git-expunge rewrite .             # Dry-run rewrite
-git-expunge rewrite . --execute   # Execute the rewrite
+git-expunge scan                         # safe defaults: secrets + gitignored
+git-expunge list                         # inspect what landed in the manifest
+git-expunge remove "vendor/**"           # drop false positives by glob
+git-expunge expunge                      # dry-run
+git-expunge expunge --execute            # do it (creates a full backup first)
+git-expunge verify                       # confirm the bad blobs are gone
 ```
 
-## How It Works
+## Core model
 
-### 1. Scan
+The on-disk manifest lives under `.git/git-expunge/findings.json` and is the single source of truth. **Membership in the manifest IS the intent** — every entry will be removed on the next `git-expunge expunge --execute`. There is no "mark for purge" flag. Curate the manifest by adding (`scan`, `add`) and removing (`remove`) entries.
 
-Scans your entire Git history for:
-- **Secrets**: API keys, passwords, tokens, private keys (using gitleaks rules)
-- **Binaries**: Executable files, compiled artifacts, large binary blobs
+The post-expunge audit sidecar at `.git/git-expunge/last-purged.json` records what each `expunge --execute` actually removed. `verify` consults this sidecar to confirm the blobs are unreachable.
 
-Outputs a `git-expunge-findings.json` file listing all findings.
+Storing both files under `.git/` means the working tree stays clean (no `.gitignore` entry needed) and the state resolves correctly for linked worktrees and bare repos (via `git rev-parse --git-common-dir`).
 
-### 2. Review
+Commands are stateless: each invocation reads-or-writes the manifest in one shot. No daemon, no carried session.
 
-Three ways to review and select what to remove:
-
-- **TUI**: Interactive terminal interface with keyboard navigation
-- **CLI**: Simple command-line prompts
-- **Report**: Generate a markdown file, edit it in any text editor
-
-#### TUI Modes
-
-The TUI has four modes accessible via number keys (1-4) or tab:
-
-| Mode | Key | Description |
-|------|-----|-------------|
-| Review | `1` | View detected findings, mark items for purge |
-| Browse | `2` | Browse all historical files as a directory tree, select to add |
-| Scan | `3` | Run scanner to detect secrets/binaries |
-| Rewrite | `4` | Dry-run or execute history rewrite |
-
-**Key bindings:**
-- `1-4` or `tab`: Switch modes
-- `↑/↓`: Navigate
-- `space`: Toggle selection
-- `a`: Select all, `c`: Clear all
-- `s`: Save manifest
-- `q`: Quit
-
-In Browse mode:
-- `←/→`: Collapse/expand directories
-- `/`: Search files
-
-### 3. Rewrite
-
-- Creates a **full backup archive** before any changes
-- Uses `git fast-export/fast-import` for reliable history rewriting
-- Runs in **dry-run mode by default** - shows what would happen
-- Only executes when you explicitly pass `--execute`
-
-### 4. Verify
-
-After rewriting, verify that the sensitive data is truly gone:
+**Repo selection.** Every subcommand operates on the current working directory by default. Use `-C` / `--repo <path>` to operate on a repository elsewhere — matches `git -C`:
 
 ```bash
-git-expunge verify /path/to/repo --manifest git-expunge-findings.json
+git-expunge scan                          # operates on .
+git-expunge -C /tmp/other-repo scan       # explicit target
+git-expunge --repo /tmp/other-repo list
 ```
-
-## Worktree Support
-
-git-expunge fully supports repositories with multiple worktrees. When rewriting history:
-
-1. **All worktrees are detected** - git-expunge finds all linked worktrees via `.git/worktrees/`
-2. **State is cleaned up** - Each worktree's index and reflogs are updated to reference new commits
-3. **Working trees are reset** - All worktrees are reset to match the new history
-
-**Important**: After a rewrite, all worktrees will be reset to their branch's HEAD. Any uncommitted changes in worktrees will be lost. Make sure to commit or stash any work before running a rewrite.
-
-```bash
-# List your worktrees before rewriting
-git worktree list
-
-# Commit any work in worktrees
-cd /path/to/worktree && git add . && git commit -m "WIP before rewrite"
-```
-
-## Safety First
-
-git-expunge is designed to never lose your data:
-
-- **Full archive backup**: Creates a compressed backup of your entire repository before any rewrite
-- **Dry-run by default**: Shows what would happen without making changes
-- **Restore command**: Easily restore from backup if anything goes wrong
-- **Verification**: Confirms purged data is unreachable after rewrite
 
 ## Commands
 
-```
-git-expunge [repo]            Launch interactive TUI (default command)
-git-expunge scan [repo]       Scan for secrets and binaries
-git-expunge add <path>...     Add files/directories to manifest for removal
-git-expunge report generate   Create human-readable markdown report
-git-expunge report read       Parse markdown back to manifest
-git-expunge rewrite           Rewrite history to remove selected items
-git-expunge verify            Verify purged items are gone
-git-expunge restore           Restore from backup archive
-```
+All commands accept the global `-C <path>` / `--repo <path>` flag to operate on a repository other than the current directory.
 
-### Adding Arbitrary Files
+| Command                                | Purpose                                                                                       |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `git-expunge scan [detector...]`       | Detect content for the manifest. Detectors: `secrets`, `gitignored`, `binaries`, `large`, `all`. No detector named ⇒ safe defaults (`secrets`+`gitignored`). |
+| `git-expunge add <glob>...`            | Add specific paths or globs to the manifest                                                   |
+| `git-expunge list`                     | Tab-separated dump of every manifest entry; filter with grep/awk                              |
+| `git-expunge search <glob>...`         | Preview history-glob matches without writing the manifest                                     |
+| `git-expunge remove <glob>...`         | Drop manifest entries whose path matches a glob                                               |
+| `git-expunge summary`                  | Counts by finding type                                                                        |
+| `git-expunge preview <hash>`           | Show a blob's content (hex dump for binaries, text otherwise)                                 |
+| `git-expunge report generate \| read`  | Markdown round-trip for offline review (writes `git-expunge.md`)                              |
+| `git-expunge expunge`                  | Rewrite history (dry-run by default; pass `--execute` to apply, creating a backup first)      |
+| `git-expunge verify`                   | Confirm purged blobs are unreachable after an expunge                                         |
+| `git-expunge restore --archive <path>` | Restore from a backup archive                                                                 |
 
-Use `git-expunge add` to remove specific files or directories from history:
+### Scanning
+
+Each detector covers an orthogonal axis. They can be combined; multiple detectors share a single history walk where possible.
+
+| Detector     | What it flags                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------ |
+| `secrets`    | API keys, passwords, tokens, private keys (gitleaks rules)                                 |
+| `gitignored` | Paths matching the repository's current gitignore rules (per-directory, info/exclude, core.excludesFile) |
+| `binaries`   | Anything with a binary MIME / magic-byte signature, **regardless of size**                 |
+| `large`      | Anything larger than `--size` (default 100KB), **regardless of MIME**                      |
+| `all`        | Every detector above                                                                       |
+
+The safe default (no detector named) runs `secrets` + `gitignored` only — these are high-confidence. `binaries` and `large` are noisy on real repositories so they require opt-in.
 
 ```bash
-# Add exact paths
-git-expunge add vendor/secrets.json .
-
-# Add glob patterns (quote to prevent shell expansion)
-git-expunge add "*.env" .
-git-expunge add "vendor/**" .
-
-# Multiple patterns
-git-expunge add "*.pem" "*.key" ".env*" .
+git-expunge scan                                  # secrets + gitignored
+git-expunge scan secrets                          # secrets only
+git-expunge scan secrets gitignored .             # both (single walk), repo "."
+git-expunge scan binaries large --size 1MB        # both binaries AND large (>1MB)
+git-expunge scan all                              # everything
 ```
 
-Added files are stored in the manifest with `purge: true` and will be removed on the next rewrite.
+**`--json`** emits the delta findings as a JSON array on stdout and suppresses the human-readable summary. The manifest is still written. Useful for piping into other tooling.
 
-## Configuration
+### Exit codes (use in CI)
 
-Create a `.git-expunge.yaml` in your repository to customize detection rules:
+`scan` is the only command with structured exit codes. Other commands follow the cobra default (0 success, 1 error).
+
+| Exit | Meaning                                                              | Use in CI                                                 |
+| ---- | -------------------------------------------------------------------- | --------------------------------------------------------- |
+| `0`  | Success, **no new findings** added to the manifest                   | Build passes — nothing new to look at                     |
+| `1`  | Success, **one or more new findings** added to the manifest          | Fail the build / open an issue / page someone             |
+| `2`  | **Tool error** — bad flag, unknown detector, git failure, missing repo | Treat as infrastructure problem, not a code problem       |
+
+The `1` ↔ `2` split matters: a tool failure shouldn't be misinterpreted as "we found new secrets." Distinguish them in your CI step.
+
+```bash
+# Simplest: any non-zero is a failure.
+git-expunge scan secrets || exit 1
+
+# Better: distinguish "new findings" (signal) from "tool broke" (infrastructure).
+set +e
+git-expunge scan secrets
+ec=$?
+set -e
+case $ec in
+  0) echo "clean" ;;
+  1) echo "::error::new secrets in history — see .git/git-expunge/findings.json" ; exit 1 ;;
+  2) echo "::error::git-expunge itself failed" ; exit 2 ;;
+esac
+```
+
+GitHub Actions example using `--json` to attach the delta to the run:
 
 ```yaml
-# Custom size threshold for binary detection
-binary:
-  size_threshold: 50KB
-
-# Additional secret patterns
-secrets:
-  rules:
-    - id: custom-api-key
-      regex: 'MY_API_KEY=[A-Za-z0-9]{32}'
-      description: "Custom API key pattern"
+- name: Scan for new secrets in history
+  id: scan
+  shell: bash
+  run: |
+    # Capture the exit code without tripping bash's default -e.
+    set +e
+    git-expunge scan secrets --json > new-findings.json
+    ec=$?
+    set -e
+    echo "exit_code=$ec" >> "$GITHUB_OUTPUT"
+- name: Upload findings
+  if: steps.scan.outputs.exit_code == '1'
+  uses: actions/upload-artifact@v4
+  with:
+    name: git-expunge-findings
+    path: new-findings.json
+- name: Fail on new findings
+  if: steps.scan.outputs.exit_code == '1'
+  run: exit 1
+- name: Fail on tool error
+  if: steps.scan.outputs.exit_code == '2'
+  run: |
+    echo "::error::git-expunge itself failed; check job logs"
+    exit 1
 ```
+
+Because scan is idempotent (running it twice with no new commits adds nothing), the same step is safe to run on every push: it'll exit `0` until something new lands.
+
+### Adding specific paths
+
+```bash
+git-expunge add vendor/secrets.json .       # exact path
+git-expunge add "*.env" .                   # glob (quote to prevent shell expansion)
+git-expunge add "vendor/**" .               # recursive
+git-expunge add "*.pem" "*.key" ".env*" .   # multiple patterns
+```
+
+### Searching, filtering, removing
+
+There is no query DSL. `list` prints tab-separated rows; pipe through grep/awk to filter:
+
+```bash
+git-expunge list | grep secret                                # only secrets
+git-expunge list | awk -F'\t' '$3 > 1048576 { print }'        # entries over 1 MB
+git-expunge summary                                            # counts by type
+git-expunge search "*.log" .                                   # preview without touching manifest
+git-expunge remove "vendor/**" "tests/**"                      # drop false positives by glob
+```
+
+### Rewriting
+
+- Creates a **full backup archive** before any changes (skip with `--skip-backup`, dangerous).
+- Uses `git fast-export/fast-import` for reliable history rewriting.
+- Runs in **dry-run mode by default** — shows what would happen.
+- Only executes when you explicitly pass `--execute`.
+
+After a successful execute, the rewritten entries are moved from the active manifest into the audit sidecar at `.git/git-expunge/last-purged.json`. `verify` consults the sidecar to confirm the blobs are unreachable.
+
+### Verifying
+
+```bash
+git-expunge verify .
+```
+
+`verify` only ever reads the post-expunge sidecar. It deliberately does **not** fall back to the active manifest — an entry there means "the user intends to remove this", not "this was removed", so verifying intent would be misleading.
+
+## Worktree support
+
+git-expunge fully supports repositories with multiple worktrees. When rewriting history:
+
+1. **All worktrees are detected** via `.git/worktrees/`.
+2. **State is cleaned up** — each worktree's index and reflogs are updated to reference new commits.
+3. **Working trees are reset** to match the new history.
+
+**Important:** After a rewrite, all worktrees will be reset to their branch's HEAD. Any uncommitted changes in worktrees will be lost. Commit or stash before running a rewrite.
+
+```bash
+git worktree list
+cd /path/to/worktree && git add . && git commit -m "WIP before rewrite"
+```
+
+## Safety
+
+git-expunge is designed to never lose your data:
+
+- **Full archive backup** before any rewrite.
+- **Dry-run by default** — shows what would happen without making changes.
+- **Restore command** to recover from backup.
+- **Verification** confirms purged data is unreachable after rewrite.
 
 ## Development
 
 ```bash
-# Clone the repository
 git clone https://github.com/benjaminabbitt/git-expunge
 cd git-expunge
 
-# Install dependencies
-just deps
-
-# Run tests
-just test
-
-# Build
-just build
-
-# Run
-just run scan /path/to/repo
+just deps          # install deps
+just test          # run tests
+just build         # build → ./bin/git-expunge
+./bin/git-expunge scan /path/to/repo
 ```
+
+`just --list` shows every available target (`build`, `test`, `test-unit`, `test-integration`, `lint`, `fmt`, `cover`, `verify`, `build-all`, …).
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Issues and PRs welcome. Please open an issue first to discuss anything beyond a small fix.
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Related Tools
+## Related tools
 
 - [BFG Repo-Cleaner](https://rtyley.github.io/bfg-repo-cleaner/) - Fast, simple tool (Java)
 - [git-filter-repo](https://github.com/newren/git-filter-repo) - Powerful rewriting tool (Python)
