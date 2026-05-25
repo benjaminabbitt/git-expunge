@@ -36,13 +36,25 @@ init: fix-perms fix-git-dubious-ownership-warning
     echo "Initialization complete!"
 
 # Build the binary (static)
+#
+# Version string is sourced from `versionator output ci`, which composes
+# the SemVer core with the metadata template from .versionator.yaml.
+# Output shape:
+#   on-tag, clean     → 0.1.0
+#   off-tag, clean    → 0.1.0+084f3f3
+#   off-tag, dirty    → 0.1.0+084f3f3.20260525021448
+#   on-tag, dirty     → 0.1.0+084f3f3.20260525021448
+# If versionator isn't installed, falls back to the bare VERSION file.
 build: fix-git-dubious-ownership-warning
     #!/bin/bash
     set -e
     mkdir -p bin/
-    VERSION=$(cat VERSION 2>/dev/null || echo "dev")
-    echo "Building git-expunge $VERSION (static binary)..."
-    CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$VERSION" -trimpath -o bin/git-expunge ./cmd/git-expunge
+    if command -v versionator >/dev/null 2>&1; then
+        eval "$(versionator output ci --format=shell 2>/dev/null || true)"
+    fi
+    SEMVER="${VERSION:-$(cat VERSION 2>/dev/null || echo dev)}"
+    echo "Building git-expunge $SEMVER (static binary)..."
+    CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$SEMVER" -trimpath -o bin/git-expunge ./cmd/git-expunge
     echo "Build completed: bin/git-expunge"
 
 # Run all tests
@@ -57,9 +69,15 @@ test-coverage:
 test-unit:
     go test -short ./...
 
-# Run integration tests
+# Run integration tests (in-process + CLI binary tests)
 test-integration:
     go test -v ./tests/integration/...
+
+# Run only the CLI-binary smoke tests (a subset of test-integration that
+# builds and execs the real git-expunge binary). Faster signal when
+# you're iterating on command surface, exit codes, or argv parsing.
+smoke:
+    go test -v -run '^TestCLI_' ./tests/integration/...
 
 # Run linter
 lint:
@@ -108,9 +126,12 @@ verify:
 build-all: fix-perms fix-git-dubious-ownership-warning
     #!/bin/bash
     set -e
-    VERSION=$(cat VERSION 2>/dev/null || echo "dev")
-    LDFLAGS="-s -w -X main.version=$VERSION"
-    echo "Building git-expunge $VERSION for all platforms with static linking..."
+    if command -v versionator >/dev/null 2>&1; then
+        eval "$(versionator output ci --format=shell 2>/dev/null || true)"
+    fi
+    SEMVER="${VERSION:-$(cat VERSION 2>/dev/null || echo dev)}"
+    LDFLAGS="-s -w -X main.version=$SEMVER"
+    echo "Building git-expunge $SEMVER for all platforms with static linking..."
     mkdir -p bin/
 
     # Linux amd64

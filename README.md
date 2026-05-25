@@ -11,7 +11,7 @@
 
 **git-expunge** is a stateless CLI for removing things that should never have been committed in the first place. Its headline use case: **retroactively apply your current `.gitignore` to your entire history**. Files that are ignored today were almost always ignored "after the fact" — they leaked in early and the `.gitignore` got patched later. git-expunge walks history, asks `git check-ignore` what would be ignored under today's rules, and lets you remove anything that matches in a single audited rewrite.
 
-It also runs gitleaks for secret detection, plus optional binary and large-file detectors. Findings land in a JSON manifest (`git-expunge-findings.json`); `git-expunge list` renders it as tab-separated rows so you can pipe through `grep`/`awk`, and `remove` lets you curate by glob before the rewrite.
+It also runs gitleaks for secret detection, plus optional binary and large-file detectors. Findings land in a JSON manifest under `.git/git-expunge/findings.json` (so the working tree stays clean); `git-expunge list` renders it as tab-separated rows you can pipe through `grep`/`awk`, and `remove` lets you curate by glob before the rewrite.
 
 ## Retroactively scrub everything your `.gitignore` would have caught
 
@@ -27,7 +27,7 @@ git bundle create ../$(basename $PWD)-pre-expunge.bundle --all
 # 2. Build a manifest of every historical blob whose path is ignored today.
 #    Default scan = secrets + gitignored, so secrets get caught in the same pass.
 git-expunge scan
-#   → writes git-expunge-findings.json
+#   → writes .git/git-expunge/findings.json
 #   → exits 1 if anything was added (CI-friendly)
 
 # 3. Eyeball the manifest. `list` prints tab-separated rows
@@ -39,11 +39,11 @@ git-expunge summary
 #    and `remove` is the curated way to prune it.
 git-expunge remove "vendor/**" "third_party/**"
 
-# 5. Dry-run the rewrite. Nothing is touched yet.
-git-expunge rewrite
+# 5. Dry-run the expunge. Nothing is touched yet.
+git-expunge expunge
 
 # 6. Execute. Creates a full backup archive next to the repo first.
-git-expunge rewrite --execute
+git-expunge expunge --execute
 
 # 7. Verify the bad blobs are unreachable in the new history.
 git-expunge verify
@@ -132,32 +132,46 @@ cd /path/to/repo
 git-expunge scan                         # safe defaults: secrets + gitignored
 git-expunge list                         # inspect what landed in the manifest
 git-expunge remove "vendor/**"           # drop false positives by glob
-git-expunge rewrite                      # dry-run
-git-expunge rewrite --execute            # do it (creates a full backup first)
+git-expunge expunge                      # dry-run
+git-expunge expunge --execute            # do it (creates a full backup first)
 git-expunge verify                       # confirm the bad blobs are gone
 ```
 
 ## Core model
 
-The on-disk manifest (`git-expunge-findings.json`) is the single source of truth. **Membership in the manifest IS the intent** — every entry will be removed on the next `git-expunge rewrite --execute`. There is no "mark for purge" flag. Curate the manifest by adding (`scan`, `add`) and removing (`remove`) entries.
+The on-disk manifest lives under `.git/git-expunge/findings.json` and is the single source of truth. **Membership in the manifest IS the intent** — every entry will be removed on the next `git-expunge expunge --execute`. There is no "mark for purge" flag. Curate the manifest by adding (`scan`, `add`) and removing (`remove`) entries.
+
+The post-expunge audit sidecar at `.git/git-expunge/last-purged.json` records what each `expunge --execute` actually removed. `verify` consults this sidecar to confirm the blobs are unreachable.
+
+Storing both files under `.git/` means the working tree stays clean (no `.gitignore` entry needed) and the state resolves correctly for linked worktrees and bare repos (via `git rev-parse --git-common-dir`).
 
 Commands are stateless: each invocation reads-or-writes the manifest in one shot. No daemon, no carried session.
 
+**Repo selection.** Every subcommand operates on the current working directory by default. Use `-C` / `--repo <path>` to operate on a repository elsewhere — matches `git -C`:
+
+```bash
+git-expunge scan                          # operates on .
+git-expunge -C /tmp/other-repo scan       # explicit target
+git-expunge --repo /tmp/other-repo list
+```
+
 ## Commands
 
-| Command                                 | Purpose                                                                                       |
-| --------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `git-expunge scan [detector...] [repo]` | Detect content for the manifest. Detectors: `secrets`, `gitignored`, `binaries`, `large`, `all`. No detector named ⇒ safe defaults (`secrets`+`gitignored`). |
-| `git-expunge add <glob>... [repo]`      | Add specific paths or globs to the manifest                                                   |
-| `git-expunge list [repo]`               | Tab-separated dump of every manifest entry; filter with grep/awk                              |
-| `git-expunge search <glob>... [repo]`   | Preview history-glob matches without writing the manifest                                     |
-| `git-expunge remove <glob>... [repo]`   | Drop manifest entries whose path matches a glob                                               |
-| `git-expunge summary [repo]`            | Counts by finding type                                                                        |
-| `git-expunge preview <hash> [repo]`     | Show a blob's content (hex dump for binaries, text otherwise)                                 |
-| `git-expunge report generate \| read`   | Markdown round-trip for offline review                                                        |
-| `git-expunge rewrite [repo]`            | Dry-run by default; pass `--execute` to actually rewrite (creates a backup first)             |
-| `git-expunge verify [repo]`             | Confirm purged blobs are unreachable after a rewrite                                          |
-| `git-expunge restore [repo] --archive`  | Restore from a backup archive                                                                 |
+All commands accept the global `-C <path>` / `--repo <path>` flag to operate on a repository other than the current directory.
+
+| Command                                | Purpose                                                                                       |
+| -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `git-expunge scan [detector...]`       | Detect content for the manifest. Detectors: `secrets`, `gitignored`, `binaries`, `large`, `all`. No detector named ⇒ safe defaults (`secrets`+`gitignored`). |
+| `git-expunge add <glob>...`            | Add specific paths or globs to the manifest                                                   |
+| `git-expunge list`                     | Tab-separated dump of every manifest entry; filter with grep/awk                              |
+| `git-expunge search <glob>...`         | Preview history-glob matches without writing the manifest                                     |
+| `git-expunge remove <glob>...`         | Drop manifest entries whose path matches a glob                                               |
+| `git-expunge summary`                  | Counts by finding type                                                                        |
+| `git-expunge preview <hash>`           | Show a blob's content (hex dump for binaries, text otherwise)                                 |
+| `git-expunge report generate \| read`  | Markdown round-trip for offline review (writes `git-expunge.md`)                              |
+| `git-expunge expunge`                  | Rewrite history (dry-run by default; pass `--execute` to apply, creating a backup first)      |
+| `git-expunge verify`                   | Confirm purged blobs are unreachable after an expunge                                         |
+| `git-expunge restore --archive <path>` | Restore from a backup archive                                                                 |
 
 ### Scanning
 
@@ -206,7 +220,7 @@ ec=$?
 set -e
 case $ec in
   0) echo "clean" ;;
-  1) echo "::error::new secrets in history — see git-expunge-findings.json" ; exit 1 ;;
+  1) echo "::error::new secrets in history — see .git/git-expunge/findings.json" ; exit 1 ;;
   2) echo "::error::git-expunge itself failed" ; exit 2 ;;
 esac
 ```
@@ -270,7 +284,7 @@ git-expunge remove "vendor/**" "tests/**"                      # drop false posi
 - Runs in **dry-run mode by default** — shows what would happen.
 - Only executes when you explicitly pass `--execute`.
 
-After a successful execute, the rewritten entries are moved from the active manifest into a sidecar at `.git/git-expunge-last-purged.json`. `verify` consults the sidecar to confirm the blobs are unreachable.
+After a successful execute, the rewritten entries are moved from the active manifest into the audit sidecar at `.git/git-expunge/last-purged.json`. `verify` consults the sidecar to confirm the blobs are unreachable.
 
 ### Verifying
 
@@ -278,7 +292,7 @@ After a successful execute, the rewritten entries are moved from the active mani
 git-expunge verify .
 ```
 
-`verify` only ever reads the post-rewrite sidecar. It deliberately does **not** fall back to the active manifest — an entry there means "the user intends to remove this", not "this was removed", so verifying intent would be misleading.
+`verify` only ever reads the post-expunge sidecar. It deliberately does **not** fall back to the active manifest — an entry there means "the user intends to remove this", not "this was removed", so verifying intent would be misleading.
 
 ## Worktree support
 

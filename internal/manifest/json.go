@@ -3,6 +3,7 @@ package manifest
 
 import (
 	"encoding/json"
+	"path/filepath"
 
 	"github.com/benjaminabbitt/git-expunge/internal/domain"
 	"github.com/spf13/afero"
@@ -17,10 +18,18 @@ func WriteJSON(manifest domain.Manifest, path string) error {
 }
 
 // WriteJSONWithFs writes a manifest to a JSON file using the provided filesystem.
+// The parent directory is created if it doesn't exist — manifests live
+// under .git/git-expunge/, which won't necessarily be present on a fresh
+// clone.
 func WriteJSONWithFs(fs afero.Fs, manifest domain.Manifest, path string) error {
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return err
+	}
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := fs.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
 	}
 	return afero.WriteFile(fs, path, data, 0644)
 }

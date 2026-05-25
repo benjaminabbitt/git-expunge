@@ -3,7 +3,16 @@ prefix: v
 prerelease:
     template: ""
 metadata:
-    template: ""
+    # Conditionally render +metadata after the SemVer core:
+    #   on-tag, clean         → ""              (no metadata)
+    #   off-tag, clean        → ShortHash
+    #   off-tag, dirty        → ShortHash.BuildDateTimeCompact
+    #   on-tag, dirty         → ShortHash.BuildDateTimeCompact
+    # Mustache sections: {{#X}}...{{/X}} renders when X is truthy;
+    # {{^X}}...{{/X}} renders when X is falsy. CommitsSinceTag is 0
+    # (falsy) on a tag, >0 (truthy) off-tag. Dirty is the string "dirty"
+    # (truthy) when the worktree has uncommitted changes, "" otherwise.
+    template: '{{#CommitsSinceTag}}{{ShortHash}}{{#Dirty}}.{{BuildDateTimeCompact}}{{/Dirty}}{{/CommitsSinceTag}}{{^CommitsSinceTag}}{{#Dirty}}{{ShortHash}}.{{BuildDateTimeCompact}}{{/Dirty}}{{/CommitsSinceTag}}'
     git:
         hashLength: 12
 release:
