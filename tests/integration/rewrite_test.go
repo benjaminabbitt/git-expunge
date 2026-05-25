@@ -12,10 +12,8 @@ import (
 func TestRewriter_DryRun(t *testing.T) {
 	repo := fixtures.RepoWithBinary(t)
 
-	// First scan to find the binary
-	config := scanner.DefaultConfig()
-	config.SizeThreshold = 10 * 1024 // 10KB for test
-	config.ScanSecrets = false
+	// Explicitly enable binary detection (off in DefaultConfig).
+	config := scanner.Config{ScanBinaries: true}
 
 	s := scanner.New(config)
 	manifest, err := s.Scan(repo.Path)
@@ -94,10 +92,8 @@ func TestRewriter_PreservesHead(t *testing.T) {
 	// Count commits on main before rewrite
 	mainCommitsBefore := strings.TrimSpace(repo.Git("rev-list", "--count", "main"))
 
-	// Scan for binaries to purge
-	config := scanner.DefaultConfig()
-	config.SizeThreshold = 10 * 1024 // 10KB for test
-	config.ScanSecrets = false
+	// Scan for binaries to purge — explicitly enable (default is off).
+	config := scanner.Config{ScanBinaries: true}
 
 	s := scanner.New(config)
 	manifest, err := s.Scan(repo.Path)

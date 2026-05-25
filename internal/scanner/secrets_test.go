@@ -18,8 +18,12 @@ func TestSecretDetector_DetectContent(t *testing.T) {
 		hasSecret bool
 	}{
 		{
+			// Gitleaks' AWS rule explicitly allowlists any value ending in
+			// "EXAMPLE" — that's the canonical placeholder from AWS docs
+			// (AKIAIOSFODNN7EXAMPLE). Use a non-placeholder value that
+			// still matches the access-key regex.
 			name:      "AWS access key pattern",
-			content:   "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
+			content:   "AWS_ACCESS_KEY_ID=AKIAZT5K7YFAPXR3VBCD",
 			hasSecret: true,
 		},
 		{

@@ -80,7 +80,6 @@ func (d *SecretDetector) Detect(blob *gitquery.BlobInfo) []*domain.Finding {
 				Rule:            f.RuleID,
 				SecretLocations: []domain.SecretLocation{loc},
 				Commits:         []string{blob.CommitHash},
-				Purge:           false,
 			}
 		}
 	}

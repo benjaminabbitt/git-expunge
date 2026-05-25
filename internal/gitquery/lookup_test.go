@@ -32,9 +32,6 @@ func TestFindBlobsForPath_ExactPath(t *testing.T) {
 	if f.Type != domain.FindingTypeAdd {
 		t.Errorf("expected type 'add', got '%s'", f.Type)
 	}
-	if !f.Purge {
-		t.Error("expected purge=true")
-	}
 	if f.BlobHash == "" {
 		t.Error("expected non-empty blob hash")
 	}

@@ -35,9 +35,6 @@ func TestBuildManifest_ScrubsIgnoredHistoricalBlob(t *testing.T) {
 	if f.Type != domain.FindingTypeAdd {
 		t.Errorf("expected type 'add', got %q", f.Type)
 	}
-	if !f.Purge {
-		t.Errorf("expected Purge=true")
-	}
 	if !strings.Contains(f.Rule, "gitignore") || !strings.Contains(f.Rule, "*.env") {
 		t.Errorf("Rule should mention gitignore and *.env, got %q", f.Rule)
 	}
@@ -73,7 +70,7 @@ func TestBuildManifest_HonorsSubdirGitignore(t *testing.T) {
 	}
 }
 
-func TestBuildManifest_MergesIntoExistingManifest_PreservesPurge(t *testing.T) {
+func TestBuildManifest_MergesIntoExistingManifest_PreservesExisting(t *testing.T) {
 	repo := testutil.NewTestRepo(t)
 	repo.WriteFile("secrets.env", "DB_PASSWORD=hunter2")
 	repo.AddAndCommit("oops")
@@ -85,7 +82,6 @@ func TestBuildManifest_MergesIntoExistingManifest_PreservesPurge(t *testing.T) {
 		BlobHash: "preexisting-binary-hash",
 		Type:     domain.FindingTypeBinary,
 		Path:     "large.bin",
-		Purge:    true,
 	}
 
 	m, err := BuildManifest(repo.Path, existing)
@@ -97,7 +93,7 @@ func TestBuildManifest_MergesIntoExistingManifest_PreservesPurge(t *testing.T) {
 	if !ok {
 		t.Fatalf("pre-existing finding was dropped from merged manifest")
 	}
-	if pre.Type != domain.FindingTypeBinary || pre.Path != "large.bin" || !pre.Purge {
+	if pre.Type != domain.FindingTypeBinary || pre.Path != "large.bin" {
 		t.Errorf("pre-existing finding was modified: %+v", pre)
 	}
 
@@ -135,14 +131,13 @@ func TestBuildManifest_MergesIntoExistingManifest_DoesNotOverwriteSameHash(t *te
 		existingHash = h
 	}
 
-	// Pre-seed an existing manifest where that same blob was classified as
-	// a binary with Purge=false (user had deliberately unchecked it).
+	// Pre-seed an existing manifest where that same blob was already classified
+	// as a binary by a prior scan.
 	existing := domain.NewManifest()
 	existing[existingHash] = &domain.Finding{
 		BlobHash: existingHash,
 		Type:     domain.FindingTypeBinary,
 		Path:     "secrets.env",
-		Purge:    false,
 	}
 
 	merged, err := BuildManifest(repo.Path, existing)
@@ -156,9 +151,6 @@ func TestBuildManifest_MergesIntoExistingManifest_DoesNotOverwriteSameHash(t *te
 	}
 	if f.Type != domain.FindingTypeBinary {
 		t.Errorf("retroignore should not overwrite an existing finding's type; got %q want %q", f.Type, domain.FindingTypeBinary)
-	}
-	if f.Purge {
-		t.Errorf("retroignore should not flip a user-curated Purge=false to true on the existing finding")
 	}
 }
 

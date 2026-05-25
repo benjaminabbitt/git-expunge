@@ -11,10 +11,16 @@ func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
 
 	if !config.ScanSecrets {
-		t.Error("expected ScanSecrets=true by default")
+		t.Error("expected ScanSecrets=true by default (high-confidence)")
 	}
-	if !config.ScanBinaries {
-		t.Error("expected ScanBinaries=true by default")
+	if !config.ScanGitignored {
+		t.Error("expected ScanGitignored=true by default (high-confidence)")
+	}
+	if config.ScanBinaries {
+		t.Error("expected ScanBinaries=false by default — too noisy for the safe default")
+	}
+	if config.ScanLargeFiles {
+		t.Error("expected ScanLargeFiles=false by default — too noisy for the safe default")
 	}
 	if config.SizeThreshold != 100*1024 {
 		t.Errorf("expected SizeThreshold=102400, got %d", config.SizeThreshold)
@@ -161,8 +167,13 @@ func TestScanner_Scan_WithMockWalker(t *testing.T) {
 		},
 	}
 
-	config := DefaultConfig()
-	config.SizeThreshold = 100 * 1024 // 100KB
+	// MockWalker bypasses the real git layer; we deliberately leave
+	// ScanGitignored off so the post-walk pass doesn't try to open the
+	// fake repo path.
+	config := Config{
+		ScanBinaries: true,
+		ScanSecrets:  true,
+	}
 
 	s := New(config).WithWalkerFactory(func(path string) (RepoWalker, error) {
 		return mockWalker, nil
@@ -247,7 +258,8 @@ func TestScanner_Scan_EmptyRepo(t *testing.T) {
 		Blobs: []*gitquery.BlobInfo{},
 	}
 
-	s := New(DefaultConfig()).WithWalkerFactory(func(path string) (RepoWalker, error) {
+	config := Config{ScanBinaries: true, ScanSecrets: true}
+	s := New(config).WithWalkerFactory(func(path string) (RepoWalker, error) {
 		return mockWalker, nil
 	})
 
@@ -261,12 +273,72 @@ func TestScanner_Scan_EmptyRepo(t *testing.T) {
 	}
 }
 
+// TestScanner_Scan_GitignoredPass pins down that ScanGitignored=true
+// triggers the post-walk pass and merges its findings into the manifest.
+func TestScanner_Scan_GitignoredPass(t *testing.T) {
+	mockWalker := &MockWalker{Blobs: []*gitquery.BlobInfo{}}
+
+	gitignoreCalls := 0
+	mockGitignore := func(repoPath string, existing domain.Manifest) (domain.Manifest, error) {
+		gitignoreCalls++
+		m := domain.NewManifest()
+		m.Add(&domain.Finding{
+			BlobHash: "gi-hash",
+			Type:     domain.FindingTypeAdd,
+			Path:     "ignored.env",
+			Rule:     "gitignore:.gitignore:*.env",
+		})
+		return m, nil
+	}
+
+	config := Config{ScanGitignored: true}
+	s := New(config).
+		WithWalkerFactory(func(string) (RepoWalker, error) { return mockWalker, nil }).
+		WithGitignoreScanner(mockGitignore)
+
+	manifest, err := s.Scan("/any/path")
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if gitignoreCalls != 1 {
+		t.Errorf("expected gitignore scanner called once, got %d", gitignoreCalls)
+	}
+	if _, ok := manifest["gi-hash"]; !ok {
+		t.Errorf("expected gitignored finding in manifest, got %+v", manifest)
+	}
+}
+
+// TestScanner_Scan_GitignoredDisabled_DoesNotInvokePass guards against
+// regressions where the post-walk pass runs unconditionally.
+func TestScanner_Scan_GitignoredDisabled_DoesNotInvokePass(t *testing.T) {
+	mockWalker := &MockWalker{Blobs: []*gitquery.BlobInfo{}}
+
+	called := false
+	mockGitignore := func(repoPath string, existing domain.Manifest) (domain.Manifest, error) {
+		called = true
+		return domain.NewManifest(), nil
+	}
+
+	config := Config{ScanBinaries: true, ScanGitignored: false}
+	s := New(config).
+		WithWalkerFactory(func(string) (RepoWalker, error) { return mockWalker, nil }).
+		WithGitignoreScanner(mockGitignore)
+
+	if _, err := s.Scan("/any/path"); err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if called {
+		t.Error("gitignore scanner should not be invoked when ScanGitignored=false")
+	}
+}
+
 func TestScanner_WithWalkerFactory(t *testing.T) {
 	customFactory := func(path string) (RepoWalker, error) {
 		return &MockWalker{}, nil
 	}
 
-	s := New(DefaultConfig()).WithWalkerFactory(customFactory)
+	config := Config{ScanBinaries: true}
+	s := New(config).WithWalkerFactory(customFactory)
 
 	// Verify factory was set by running a scan
 	_, err := s.Scan("/any/path")

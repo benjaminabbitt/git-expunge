@@ -8,59 +8,58 @@ import (
 
 func TestBinaryDetector_Detect(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       []byte
-		size          int64
-		sizeThreshold int64
-		wantBinary    bool
+		name       string
+		content    []byte
+		size       int64
+		wantBinary bool
 	}{
 		{
-			name:          "ELF binary above threshold",
-			content:       makeELFBinary(100 * 1024),
-			size:          100 * 1024,
-			sizeThreshold: 50 * 1024,
-			wantBinary:    true,
+			name:       "Large ELF binary",
+			content:    makeELFBinary(100 * 1024),
+			size:       100 * 1024,
+			wantBinary: true,
 		},
 		{
-			name:          "ELF binary below threshold",
-			content:       makeELFBinary(10 * 1024),
-			size:          10 * 1024,
-			sizeThreshold: 50 * 1024,
-			wantBinary:    false, // Below threshold
+			name:       "Tiny ELF binary — size is irrelevant",
+			content:    makeELFBinary(64),
+			size:       64,
+			wantBinary: true,
 		},
 		{
-			name:          "Text file above threshold",
-			content:       makeTextContent(100 * 1024),
-			size:          100 * 1024,
-			sizeThreshold: 50 * 1024,
-			wantBinary:    false, // Text is not binary
+			name:       "Large text file is not binary",
+			content:    makeTextContent(100 * 1024),
+			size:       100 * 1024,
+			wantBinary: false,
 		},
 		{
-			name:          "PNG image above threshold",
-			content:       makePNGHeader(100 * 1024),
-			size:          100 * 1024,
-			sizeThreshold: 50 * 1024,
-			wantBinary:    true,
+			name:       "PNG image",
+			content:    makePNGHeader(100 * 1024),
+			size:       100 * 1024,
+			wantBinary: true,
 		},
 		{
-			name:          "ZIP archive above threshold",
-			content:       makeZIPHeader(100 * 1024),
-			size:          100 * 1024,
-			sizeThreshold: 50 * 1024,
-			wantBinary:    true,
+			name:       "Small PNG — still binary",
+			content:    makePNGHeader(64),
+			size:       64,
+			wantBinary: true,
 		},
 		{
-			name:          "JSON file above threshold",
-			content:       []byte(`{"key": "value", "nested": {"array": [1, 2, 3]}}`),
-			size:          100 * 1024,
-			sizeThreshold: 50 * 1024,
-			wantBinary:    false, // JSON is text
+			name:       "ZIP archive",
+			content:    makeZIPHeader(100 * 1024),
+			size:       100 * 1024,
+			wantBinary: true,
+		},
+		{
+			name:       "JSON is text, not binary",
+			content:    []byte(`{"key": "value", "nested": {"array": [1, 2, 3]}}`),
+			size:       100 * 1024,
+			wantBinary: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			detector := NewBinaryDetector(tt.sizeThreshold)
+			detector := NewBinaryDetector()
 
 			blob := &gitquery.BlobInfo{
 				Hash:       "abc123",
@@ -125,7 +124,6 @@ func TestIsBinaryContent(t *testing.T) {
 // Helper functions to create test content
 
 func makeELFBinary(size int) []byte {
-	// ELF magic header
 	header := []byte{
 		0x7f, 0x45, 0x4c, 0x46, // ELF magic
 		0x02, 0x01, 0x01, 0x00, // 64-bit, little endian
@@ -137,7 +135,6 @@ func makeELFBinary(size int) []byte {
 }
 
 func makePNGHeader(size int) []byte {
-	// PNG magic header
 	header := []byte{
 		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 	}
@@ -147,7 +144,6 @@ func makePNGHeader(size int) []byte {
 }
 
 func makeZIPHeader(size int) []byte {
-	// ZIP magic header
 	header := []byte{
 		0x50, 0x4b, 0x03, 0x04,
 	}

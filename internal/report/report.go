@@ -105,14 +105,9 @@ func (g *Generator) Generate(manifest domain.Manifest, w io.Writer) error {
 }
 
 func (g *Generator) writeFinding(w io.Writer, f *domain.Finding) error {
-	// Checkbox
-	checkbox := "[ ]"
-	if f.Purge {
-		checkbox = "[x]"
-	}
-
-	// Header with path and checkbox
-	fmt.Fprintf(w, "### %s %s\n\n", checkbox, f.Path)
+	// Header with path. Every entry in the manifest will be purged on the
+	// next rewrite, so there's no per-entry flag to render.
+	fmt.Fprintf(w, "### %s\n\n", f.Path)
 
 	// Blob hash (required for parsing back)
 	fmt.Fprintf(w, "- **Blob:** `%s`\n", f.BlobHash)
@@ -230,8 +225,11 @@ func Parse(r io.Reader) (domain.Manifest, error) {
 	var currentFinding *domain.Finding
 	var currentType domain.FindingType
 
-	// Regex patterns
-	headerPattern := regexp.MustCompile(`^###\s+\[([ xX])\]\s+(.+)$`)
+	// Regex patterns. The header tolerates an optional `[ ]`/`[x]`
+	// checkbox for backwards compatibility with older reports, but the
+	// checkbox value is ignored — every entry in the parsed manifest is
+	// implicitly to be purged.
+	headerPattern := regexp.MustCompile(`^###\s+(?:\[[ xX]\]\s+)?(.+)$`)
 	blobPattern := regexp.MustCompile(`^\s*-\s+\*\*Blob:\*\*\s+` + "`" + `([a-f0-9]+)` + "`")
 	sizePattern := regexp.MustCompile(`^\s*-\s+\*\*Size:\*\*\s+(.+)$`)
 	typePattern := regexp.MustCompile(`^\s*-\s+\*\*Type:\*\*\s+(.+)$`)
@@ -257,13 +255,11 @@ func Parse(r io.Reader) (domain.Manifest, error) {
 				manifest.Add(currentFinding)
 			}
 
-			purge := strings.ToLower(matches[1]) == "x"
-			path := strings.TrimSpace(matches[2])
+			path := strings.TrimSpace(matches[1])
 
 			currentFinding = &domain.Finding{
-				Type:  currentType,
-				Path:  path,
-				Purge: purge,
+				Type: currentType,
+				Path: path,
 			}
 			continue
 		}

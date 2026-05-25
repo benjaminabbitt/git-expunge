@@ -1,66 +1,54 @@
 // Package domain contains core domain types for git-expunge.
+//
+// The manifest is the authoritative list of blobs to be removed from
+// history. Membership in the manifest is the intent — there is no
+// separate "marked for purge" flag. A blob in the manifest will be
+// removed on the next `git-expunge rewrite --execute`; remove it from
+// the manifest first if you don't want that.
 package domain
 
-import "fmt"
-
-// FindingType represents the type of finding (binary or secret).
+// FindingType categorises why a blob is in the manifest.
 type FindingType string
 
 const (
-	// FindingTypeBinary indicates a binary file.
+	// FindingTypeBinary indicates the blob was classified as binary by
+	// MIME/magic-byte detection.
 	FindingTypeBinary FindingType = "binary"
-	// FindingTypeSecret indicates a secret/sensitive data.
+	// FindingTypeSecret indicates a secret/sensitive content match
+	// (gitleaks rule).
 	FindingTypeSecret FindingType = "secret"
-	// FindingTypeAdd indicates a manually added path.
+	// FindingTypeLargeFile indicates the blob exceeded the size
+	// threshold of the LargeFileDetector — irrespective of MIME type.
+	FindingTypeLargeFile FindingType = "large_file"
+	// FindingTypeAdd indicates a path-matched addition (from the `add`
+	// command or `scan gitignored`).
 	FindingTypeAdd FindingType = "add"
 )
 
 // SecretLocation represents the location of a secret within a file.
 type SecretLocation struct {
-	// StartLine is the 1-based line number where the secret starts.
-	StartLine int `json:"start_line"`
-	// EndLine is the 1-based line number where the secret ends.
-	EndLine int `json:"end_line"`
-	// StartColumn is the 0-based column where the secret starts.
-	StartColumn int `json:"start_column"`
-	// EndColumn is the 0-based column where the secret ends.
-	EndColumn int `json:"end_column"`
-	// Match is the actual matched secret string.
-	Match string `json:"match"`
+	StartLine   int    `json:"start_line"`
+	EndLine     int    `json:"end_line"`
+	StartColumn int    `json:"start_column"`
+	EndColumn   int    `json:"end_column"`
+	Match       string `json:"match"`
 }
 
-// Finding represents a detected item that may need to be expunged.
+// Finding represents an entry in the manifest — a blob targeted for
+// removal from history, with metadata explaining why.
 type Finding struct {
-	// BlobHash is the git blob SHA that contains this finding.
-	BlobHash string `json:"blob_hash"`
-
-	// Type indicates whether this is a binary or secret.
-	Type FindingType `json:"type"`
-
-	// Path is the file path where this finding was detected.
-	Path string `json:"path"`
-
-	// Size is the size of the blob in bytes.
-	Size int64 `json:"size,omitempty"`
-
-	// MimeType is the detected MIME type (for binaries).
-	MimeType string `json:"mime_type,omitempty"`
-
-	// Rule is the detection rule that matched (for secrets).
-	Rule string `json:"rule,omitempty"`
-
-	// SecretLocations contains the locations of secrets within the file.
+	BlobHash        string           `json:"blob_hash"`
+	Type            FindingType      `json:"type"`
+	Path            string           `json:"path"`
+	Size            int64            `json:"size,omitempty"`
+	MimeType        string           `json:"mime_type,omitempty"`
+	Rule            string           `json:"rule,omitempty"`
 	SecretLocations []SecretLocation `json:"secret_locations,omitempty"`
-
-	// Commits lists the commit hashes where this blob appears.
-	Commits []string `json:"commits,omitempty"`
-
-	// Purge indicates whether this finding should be removed.
-	Purge bool `json:"purge"`
+	Commits         []string         `json:"commits,omitempty"`
 }
 
-// Manifest represents the collection of findings from a scan.
-// The key is the blob hash.
+// Manifest is the collection of findings keyed by blob hash. Every
+// entry is implicitly "to be purged" — there is no per-entry flag.
 type Manifest map[string]*Finding
 
 // NewManifest creates a new empty manifest.
@@ -68,11 +56,12 @@ func NewManifest() Manifest {
 	return make(Manifest)
 }
 
-// Add adds a finding to the manifest.
-// If a finding with the same blob hash exists, commits are merged.
+// Add adds a finding to the manifest. If a finding with the same blob
+// hash exists, its commit list is unioned with the incoming finding's
+// commit list; other fields are left untouched (first writer wins on
+// Type, Path, etc.).
 func (m Manifest) Add(f *Finding) {
 	if existing, ok := m[f.BlobHash]; ok {
-		// Merge commits
 		existing.Commits = mergeCommits(existing.Commits, f.Commits)
 		return
 	}
@@ -89,50 +78,9 @@ func (m Manifest) Remove(hash string) bool {
 	return true
 }
 
-// Toggle flips the Purge flag of the finding with the given hash and
-// returns the new value. Returns an error if no entry exists.
-func (m Manifest) Toggle(hash string) (bool, error) {
-	f, ok := m[hash]
-	if !ok {
-		return false, fmt.Errorf("manifest: no finding for blob %s", hash)
-	}
-	f.Purge = !f.Purge
-	return f.Purge, nil
-}
-
-// SetPurge sets the Purge flag of the finding with the given hash to a
-// specific value. Returns (true, nil) if the value changed, (false, nil)
-// if it was already the requested value, or an error if no entry exists.
-func (m Manifest) SetPurge(hash string, purge bool) (bool, error) {
-	f, ok := m[hash]
-	if !ok {
-		return false, fmt.Errorf("manifest: no finding for blob %s", hash)
-	}
-	if f.Purge == purge {
-		return false, nil
-	}
-	f.Purge = purge
-	return true, nil
-}
-
-// MarkAllForPurge sets Purge=true on every entry.
-func (m Manifest) MarkAllForPurge() {
-	for _, f := range m {
-		f.Purge = true
-	}
-}
-
-// ClearAllPurge sets Purge=false on every entry.
-func (m Manifest) ClearAllPurge() {
-	for _, f := range m {
-		f.Purge = false
-	}
-}
-
 // Merge folds another manifest into m, applying Add's merge-on-collision
 // semantics for existing hashes. Returns the count of newly inserted
-// entries — useful for callers that need to refresh a derived view only
-// when the structure changes.
+// entries.
 func (m Manifest) Merge(other Manifest) int {
 	added := 0
 	for _, f := range other {
@@ -144,24 +92,12 @@ func (m Manifest) Merge(other Manifest) int {
 	return added
 }
 
-// PurgeCount returns the number of findings marked for purging.
-func (m Manifest) PurgeCount() int {
-	count := 0
-	for _, f := range m {
-		if f.Purge {
-			count++
-		}
-	}
-	return count
-}
-
-// BlobsToPurge returns a list of blob hashes marked for purging.
-func (m Manifest) BlobsToPurge() []string {
-	var blobs []string
-	for hash, f := range m {
-		if f.Purge {
-			blobs = append(blobs, hash)
-		}
+// Blobs returns every blob hash in the manifest. The order is
+// unspecified — callers that need stable ordering should sort.
+func (m Manifest) Blobs() []string {
+	blobs := make([]string, 0, len(m))
+	for hash := range m {
+		blobs = append(blobs, hash)
 	}
 	return blobs
 }
@@ -170,7 +106,6 @@ func (m Manifest) BlobsToPurge() []string {
 func mergeCommits(a, b []string) []string {
 	seen := make(map[string]bool)
 	var result []string
-
 	for _, c := range a {
 		if !seen[c] {
 			seen[c] = true
@@ -186,110 +121,92 @@ func mergeCommits(a, b []string) []string {
 	return result
 }
 
-// SharedBlobInfo contains information about a blob that appears at multiple paths.
-type SharedBlobInfo struct {
-	BlobHash string   // The blob hash
-	Paths    []string // All paths where this blob content appears
-}
-
-// SharedBlobWarning contains warning information about purging a shared blob.
+// SharedBlobWarning describes a blob in the manifest that also appears
+// at paths NOT in the manifest. Purging it would remove content from
+// those un-manifested paths too — surfacing this lets the user opt in.
 type SharedBlobWarning struct {
 	BlobHash       string   // The blob hash being purged
-	PurgePath      string   // The path marked for purging in the manifest
-	AffectedPaths  []string // Additional paths that will be affected
-	TotalLocations int      // Total number of locations this blob appears
+	PurgePath      string   // The path recorded on the manifest entry
+	AffectedPaths  []string // Other paths the same blob appears at (not in the manifest)
+	TotalLocations int      // Total paths this blob appears at, across history
 }
 
-// SkippedBlob contains information about a blob that was skipped due to shared paths.
+// SkippedBlob describes a blob excluded by SafeBlobs because one or
+// more of its paths is not in the manifest (so purging would also
+// remove content the user didn't request).
 type SkippedBlob struct {
-	BlobHash      string   // The blob hash that was skipped
-	MarkedPath    string   // The path that was marked for purge
-	UnmarkedPaths []string // Paths NOT marked for purge that would be affected
+	BlobHash      string
+	MarkedPath    string   // The path recorded on the manifest entry
+	UnmarkedPaths []string // Paths NOT in the manifest that would be affected
 }
 
-// SafeBlobsToPurge returns only blobs where ALL paths containing that blob are marked for purge.
-// If a blob appears at any path NOT in the manifest or NOT marked for purge, it is excluded.
-// Returns the safe blobs and a list of skipped blobs with reasons.
-func (m Manifest) SafeBlobsToPurge(allPathsForBlobs map[string][]string) ([]string, []SkippedBlob) {
-	// Build a map of paths marked for purge
-	purgedPaths := make(map[string]bool)
+// SafeBlobs returns blobs from the manifest that can be purged without
+// removing un-manifested paths. A blob is "safe" when every path the
+// blob appears at across history is also a path in the manifest.
+// Pass allPathsForBlobs = blobhash -> []historical-path (computed by
+// the gitquery layer).
+func (m Manifest) SafeBlobs(allPathsForBlobs map[string][]string) ([]string, []SkippedBlob) {
+	manifestPaths := make(map[string]bool, len(m))
 	for _, f := range m {
-		if f.Purge {
-			purgedPaths[f.Path] = true
-		}
+		manifestPaths[f.Path] = true
 	}
 
-	var safeBlobs []string
+	var safe []string
 	var skipped []SkippedBlob
 
-	for _, f := range m {
-		if !f.Purge {
+	for hash, f := range m {
+		paths, ok := allPathsForBlobs[hash]
+		if !ok || len(paths) == 0 {
+			// Caller didn't supply path info for this blob — conservatively include it.
+			safe = append(safe, hash)
 			continue
 		}
 
-		paths, exists := allPathsForBlobs[f.BlobHash]
-		if !exists || len(paths) == 0 {
-			// No path info available, include the blob (conservative for backwards compat)
-			safeBlobs = append(safeBlobs, f.BlobHash)
-			continue
-		}
-
-		// Check if ALL paths for this blob are marked for purge
-		var unmarkedPaths []string
+		var unmarked []string
 		for _, p := range paths {
-			if !purgedPaths[p] {
-				unmarkedPaths = append(unmarkedPaths, p)
+			if !manifestPaths[p] {
+				unmarked = append(unmarked, p)
 			}
 		}
-
-		if len(unmarkedPaths) == 0 {
-			// All paths are marked for purge - safe to include
-			safeBlobs = append(safeBlobs, f.BlobHash)
+		if len(unmarked) == 0 {
+			safe = append(safe, hash)
 		} else {
-			// Some paths are NOT marked - skip this blob
 			skipped = append(skipped, SkippedBlob{
-				BlobHash:      f.BlobHash,
+				BlobHash:      hash,
 				MarkedPath:    f.Path,
-				UnmarkedPaths: unmarkedPaths,
+				UnmarkedPaths: unmarked,
 			})
 		}
 	}
 
-	return safeBlobs, skipped
+	return safe, skipped
 }
 
-// GetSharedBlobWarnings returns warnings for blobs marked for purge that appear at multiple paths.
-// This helps users understand that purging one path will affect all paths with the same content.
-func (m Manifest) GetSharedBlobWarnings(allPathsForBlobs map[string][]string) []SharedBlobWarning {
+// SharedBlobWarnings returns warnings for blobs in the manifest that
+// appear at multiple historical paths. The user might be unaware they're
+// taking out content beyond the path on the manifest entry.
+func (m Manifest) SharedBlobWarnings(allPathsForBlobs map[string][]string) []SharedBlobWarning {
 	var warnings []SharedBlobWarning
-
-	for _, f := range m {
-		if !f.Purge {
+	for hash, f := range m {
+		paths, ok := allPathsForBlobs[hash]
+		if !ok || len(paths) <= 1 {
 			continue
 		}
-
-		paths, exists := allPathsForBlobs[f.BlobHash]
-		if !exists || len(paths) <= 1 {
-			continue
-		}
-
-		// This blob appears at multiple paths - create a warning
-		var affectedPaths []string
+		var affected []string
 		for _, p := range paths {
 			if p != f.Path {
-				affectedPaths = append(affectedPaths, p)
+				affected = append(affected, p)
 			}
 		}
-
-		if len(affectedPaths) > 0 {
-			warnings = append(warnings, SharedBlobWarning{
-				BlobHash:       f.BlobHash,
-				PurgePath:      f.Path,
-				AffectedPaths:  affectedPaths,
-				TotalLocations: len(paths),
-			})
+		if len(affected) == 0 {
+			continue
 		}
+		warnings = append(warnings, SharedBlobWarning{
+			BlobHash:       hash,
+			PurgePath:      f.Path,
+			AffectedPaths:  affected,
+			TotalLocations: len(paths),
+		})
 	}
-
 	return warnings
 }

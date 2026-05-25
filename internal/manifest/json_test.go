@@ -19,7 +19,6 @@ func TestWriteAndReadJSON(t *testing.T) {
 		Size:     1024,
 		MimeType: "application/octet-stream",
 		Commits:  []string{"c1", "c2"},
-		Purge:    true,
 	})
 	m.Add(&domain.Finding{
 		BlobHash: "def456",
@@ -27,7 +26,6 @@ func TestWriteAndReadJSON(t *testing.T) {
 		Path:     ".env",
 		Rule:     "aws-access-key",
 		Commits:  []string{"c3"},
-		Purge:    false,
 	})
 
 	// Write to temp file
@@ -65,9 +63,6 @@ func TestWriteAndReadJSON(t *testing.T) {
 	if f.Path != "bin/app" {
 		t.Errorf("expected path bin/app, got %s", f.Path)
 	}
-	if !f.Purge {
-		t.Error("expected purge=true")
-	}
 }
 
 func TestReadJSON_FileNotFound(t *testing.T) {
@@ -104,7 +99,6 @@ func TestWriteAndReadJSON_WithMemFs(t *testing.T) {
 		Size:     1024,
 		MimeType: "application/octet-stream",
 		Commits:  []string{"c1", "c2"},
-		Purge:    true,
 	})
 	m.Add(&domain.Finding{
 		BlobHash: "def456",
@@ -112,7 +106,6 @@ func TestWriteAndReadJSON_WithMemFs(t *testing.T) {
 		Path:     ".env",
 		Rule:     "aws-access-key",
 		Commits:  []string{"c3"},
-		Purge:    false,
 	})
 
 	// Write to memory filesystem
@@ -151,9 +144,6 @@ func TestWriteAndReadJSON_WithMemFs(t *testing.T) {
 	}
 	if f.Path != "bin/app" {
 		t.Errorf("expected path bin/app, got %s", f.Path)
-	}
-	if !f.Purge {
-		t.Error("expected purge=true")
 	}
 }
 

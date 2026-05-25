@@ -17,9 +17,12 @@ func TestEndToEnd_ScanReportReview(t *testing.T) {
 	// Create test repo with secrets and binaries
 	repo := fixtures.RepoWithSecretAndBinary(t)
 
-	// Step 1: Scan
-	config := scanner.DefaultConfig()
-	config.SizeThreshold = 10 * 1024 // 10KB for test
+	// Step 1: Scan — explicitly enable binaries+secrets (defaults are
+	// secrets+gitignored, but this test wants binaries too).
+	config := scanner.Config{
+		ScanBinaries: true,
+		ScanSecrets:  true,
+	}
 
 	s := scanner.New(config)
 	m, err := s.Scan(repo.Path)
@@ -63,23 +66,17 @@ func TestEndToEnd_ScanReportReview(t *testing.T) {
 		t.Errorf("round-trip lost findings: %d vs %d", len(roundTripped), len(m))
 	}
 
-	// Step 5: Mark items for purge
-	for _, f := range m {
-		f.Purge = true
+	// Step 5: Verify Blobs() reflects everything in the manifest. Membership in
+	// the manifest IS the intent; there is no separate Purge flag.
+	if len(m) == 0 {
+		t.Error("expected at least one finding in the manifest")
+	}
+	blobs := m.Blobs()
+	if len(blobs) != len(m) {
+		t.Errorf("Blobs() count mismatch: %d vs %d", len(blobs), len(m))
 	}
 
-	purgeCount := m.PurgeCount()
-	if purgeCount == 0 {
-		t.Error("expected some items marked for purge")
-	}
-
-	// Step 6: Verify BlobsToPurge works
-	blobs := m.BlobsToPurge()
-	if len(blobs) != purgeCount {
-		t.Errorf("BlobsToPurge mismatch: %d vs %d", len(blobs), purgeCount)
-	}
-
-	t.Logf("E2E test passed: found %d findings, marked %d for purge", len(m), purgeCount)
+	t.Logf("E2E test passed: %d findings in manifest", len(m))
 }
 
 func TestEndToEnd_BackupAndRestore(t *testing.T) {
@@ -117,8 +114,10 @@ func TestEndToEnd_FindingTypes(t *testing.T) {
 	// Test repo with both types
 	repo := fixtures.RepoWithSecretAndBinary(t)
 
-	config := scanner.DefaultConfig()
-	config.SizeThreshold = 10 * 1024
+	config := scanner.Config{
+		ScanBinaries: true,
+		ScanSecrets:  true,
+	}
 
 	s := scanner.New(config)
 	m, err := s.Scan(repo.Path)

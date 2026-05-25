@@ -11,9 +11,8 @@ import (
 func TestScanner_BinaryDetection(t *testing.T) {
 	repo := fixtures.RepoWithBinary(t)
 
-	config := scanner.DefaultConfig()
-	config.SizeThreshold = 10 * 1024 // 10KB for test
-	config.ScanSecrets = false       // Only test binary detection
+	// Isolate the binary detector — other detectors are tested separately.
+	config := scanner.Config{ScanBinaries: true}
 
 	s := scanner.New(config)
 	manifest, err := s.Scan(repo.Path)
@@ -66,12 +65,15 @@ func TestScanner_EmptyRepo(t *testing.T) {
 	}
 }
 
+// TestScanner_SizeThreshold pins down that SizeThreshold gates the
+// LargeFileDetector and ONLY the LargeFileDetector. Binary detection is
+// orthogonal — a tiny PNG is still flagged as binary regardless.
 func TestScanner_SizeThreshold(t *testing.T) {
 	repo := fixtures.RepoWithBinary(t)
 
 	tests := []struct {
-		name          string
-		threshold     int64
+		name           string
+		threshold      int64
 		expectFindings bool
 	}{
 		{
@@ -88,9 +90,12 @@ func TestScanner_SizeThreshold(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := scanner.DefaultConfig()
-			config.SizeThreshold = tt.threshold
-			config.ScanSecrets = false
+			// Only run the large-file detector for this test — others
+			// would muddy the size-gating signal.
+			config := scanner.Config{
+				ScanLargeFiles: true,
+				SizeThreshold:  tt.threshold,
+			}
 
 			s := scanner.New(config)
 			manifest, err := s.Scan(repo.Path)
@@ -109,8 +114,7 @@ func TestScanner_SizeThreshold(t *testing.T) {
 func TestScanner_SecretDetection(t *testing.T) {
 	repo := fixtures.RepoWithSecret(t)
 
-	config := scanner.DefaultConfig()
-	config.ScanBinaries = false // Only test secret detection
+	config := scanner.Config{ScanSecrets: true}
 
 	s := scanner.New(config)
 	manifest, err := s.Scan(repo.Path)
@@ -147,8 +151,10 @@ func TestScanner_SecretDetection(t *testing.T) {
 func TestScanner_CombinedDetection(t *testing.T) {
 	repo := fixtures.RepoWithSecretAndBinary(t)
 
-	config := scanner.DefaultConfig()
-	config.SizeThreshold = 10 * 1024 // 10KB for test
+	config := scanner.Config{
+		ScanBinaries: true,
+		ScanSecrets:  true,
+	}
 
 	s := scanner.New(config)
 	manifest, err := s.Scan(repo.Path)
@@ -184,7 +190,6 @@ func TestManifest_Operations(t *testing.T) {
 		Type:     domain.FindingTypeBinary,
 		Path:     "bin/app",
 		Commits:  []string{"commit1"},
-		Purge:    false,
 	})
 
 	manifest.Add(&domain.Finding{
@@ -192,18 +197,16 @@ func TestManifest_Operations(t *testing.T) {
 		Type:     domain.FindingTypeSecret,
 		Path:     "secrets.env",
 		Commits:  []string{"commit2"},
-		Purge:    true,
 	})
 
-	// Test PurgeCount
-	if count := manifest.PurgeCount(); count != 1 {
-		t.Errorf("expected PurgeCount=1, got %d", count)
+	// Membership in the manifest is the intent — every entry is "to be purged".
+	if len(manifest) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(manifest))
 	}
 
-	// Test BlobsToPurge
-	blobs := manifest.BlobsToPurge()
-	if len(blobs) != 1 || blobs[0] != "def456" {
-		t.Errorf("expected BlobsToPurge=[def456], got %v", blobs)
+	blobs := manifest.Blobs()
+	if len(blobs) != 2 {
+		t.Errorf("expected Blobs() len=2, got %v", blobs)
 	}
 
 	// Test merge commits

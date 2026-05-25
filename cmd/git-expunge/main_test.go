@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,7 +50,6 @@ func TestRewriteFlags_DryRunByDefault(t *testing.T) {
 		BlobHash: "abc123",
 		Type:     domain.FindingTypeSecret,
 		Path:     "secret.txt",
-		Purge:    true,
 	})
 	manifestPath := filepath.Join(repo.Path, "git-expunge-findings.json")
 	if err := manifest.WriteJSON(m, manifestPath); err != nil {
@@ -87,7 +87,6 @@ func TestRewriteFlags_ExecuteOverridesDryRun(t *testing.T) {
 		BlobHash: "abc123",
 		Type:     domain.FindingTypeSecret,
 		Path:     "secret.txt",
-		Purge:    true,
 	})
 	manifestPath := filepath.Join(repo.Path, "git-expunge-findings.json")
 	if err := manifest.WriteJSON(m, manifestPath); err != nil {
@@ -116,41 +115,33 @@ func TestRewriteFlags_ExecuteOverridesDryRun(t *testing.T) {
 	}
 }
 
-func TestRewriteFlags_NoPurgeItems(t *testing.T) {
-	// Create a test repo
+// TestRewriteFlags_EmptyManifest pins down the "nothing to do" path: when
+// the manifest is empty, rewrite prints a friendly message and exits
+// cleanly. Replaces the old "no purge items" test — every entry in the
+// manifest is now implicitly to-be-purged, so the only way to have
+// nothing to purge is an empty manifest.
+func TestRewriteFlags_EmptyManifest(t *testing.T) {
 	repo := testutil.NewTestRepo(t)
-
 	repo.WriteFile("readme.txt", "Hello world")
 	repo.AddAndCommit("add readme")
 
-	// Create a manifest with no items marked for purge
-	m := domain.NewManifest()
-	m.Add(&domain.Finding{
-		BlobHash: "abc123",
-		Type:     domain.FindingTypeBinary,
-		Path:     "file.bin",
-		Purge:    false, // Not marked for purge
-	})
 	manifestPath := filepath.Join(repo.Path, "git-expunge-findings.json")
-	if err := manifest.WriteJSON(m, manifestPath); err != nil {
+	if err := manifest.WriteJSON(domain.NewManifest(), manifestPath); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
-	// Run rewrite
 	var stdout bytes.Buffer
 	cmd := newTestRootCmd()
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stdout)
 	cmd.SetArgs([]string{"rewrite", repo.Path})
 
-	err := cmd.Execute()
-	if err != nil {
-		t.Fatalf("rewrite command failed: %v", err)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("rewrite: %v", err)
 	}
 
-	output := stdout.String()
-	if !strings.Contains(output, "No items marked for purging") {
-		t.Errorf("expected 'No items marked for purging' message, got: %s", output)
+	if !strings.Contains(stdout.String(), "No items marked for purging") {
+		t.Errorf("expected friendly empty-manifest message, got: %s", stdout.String())
 	}
 }
 
@@ -180,7 +171,6 @@ func TestRewriteExecute_RemovesPurgedEntriesFromManifest(t *testing.T) {
 		BlobHash: blobHash,
 		Type:     domain.FindingTypeAdd,
 		Path:     "secrets.env",
-		Purge:    true,
 	})
 	manifestPath := filepath.Join(repo.Path, "git-expunge-findings.json")
 	if err := manifest.WriteJSON(m, manifestPath); err != nil {
@@ -224,7 +214,7 @@ func TestRewriteExecute_WritesPurgedSidecar(t *testing.T) {
 	m := domain.NewManifest()
 	m.Add(&domain.Finding{
 		BlobHash: blobHash, Type: domain.FindingTypeAdd,
-		Path: "secrets.env", Purge: true,
+		Path: "secrets.env",
 	})
 	if err := manifest.WriteJSON(m, filepath.Join(repo.Path, "git-expunge-findings.json")); err != nil {
 		t.Fatalf("write manifest: %v", err)
@@ -259,7 +249,7 @@ func TestVerify_ReadsSidecar(t *testing.T) {
 	blobHash := strings.TrimSpace(repo.Git("rev-parse", "HEAD:secrets.env"))
 
 	m := domain.NewManifest()
-	m.Add(&domain.Finding{BlobHash: blobHash, Type: domain.FindingTypeAdd, Path: "secrets.env", Purge: true})
+	m.Add(&domain.Finding{BlobHash: blobHash, Type: domain.FindingTypeAdd, Path: "secrets.env"})
 	if err := manifest.WriteJSON(m, filepath.Join(repo.Path, "git-expunge-findings.json")); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}
@@ -309,7 +299,7 @@ func TestVerify_NoSidecar_DoesNotFallBack(t *testing.T) {
 	// rewrite, so no sidecar exists.
 	bogus := "0000000000000000000000000000000000000000"
 	m := domain.NewManifest()
-	m.Add(&domain.Finding{BlobHash: bogus, Type: domain.FindingTypeAdd, Path: "ghost.bin", Purge: true})
+	m.Add(&domain.Finding{BlobHash: bogus, Type: domain.FindingTypeAdd, Path: "ghost.bin"})
 	if err := manifest.WriteJSON(m, filepath.Join(repo.Path, "git-expunge-findings.json")); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}
@@ -411,163 +401,330 @@ func init() {
 	os.Setenv("GIT_COMMITTER_EMAIL", "test@test.com")
 }
 
-// newRetroignoreTestCmd builds a fresh cobra tree with just the retroignore
-// command, mirroring newTestRootCmd's pattern so tests stay isolated.
-func newRetroignoreTestCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "git-expunge"}
-	ri := &cobra.Command{
-		Use:  "retroignore [repo-path]",
-		Args: cobra.MaximumNArgs(1),
-		RunE: runRetroignore,
+// --- scan / list / search / remove / summary --------------------------------
+
+// newScanTestCmd builds an isolated cobra tree for the new scan command.
+func newScanTestCmd() *cobra.Command {
+	root := &cobra.Command{Use: "git-expunge"}
+	s := &cobra.Command{
+		Use:           "scan [detector...] [repo]",
+		RunE:          runScan,
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
-	ri.Flags().StringP("output", "o", "", "Output manifest path")
-	ri.Flags().BoolP("yes", "y", false, "Auto-confirm review prompt")
-	ri.Flags().Bool("no-prompt", false, "Skip review prompt")
-	cmd.AddCommand(ri)
-	return cmd
+	s.Flags().String("size", "100KB", "Size threshold for `large`")
+	s.Flags().StringP("output", "o", "", "Manifest path")
+	s.Flags().Bool("json", false, "Emit JSON delta")
+	s.Flags().IntP("workers", "j", 0, "Workers")
+	root.AddCommand(s)
+	return root
 }
 
-func TestRetroignoreCmd_NoPrompt_WritesManifest(t *testing.T) {
+// TestScanCmd_NoArgs_RunsSafeDefaults pins down that bare `scan` runs the
+// safe defaults — secrets + gitignored — and writes a manifest at
+// <repo>/git-expunge-findings.json.
+func TestScanCmd_NoArgs_RunsSafeDefaults(t *testing.T) {
 	repo := testutil.NewTestRepo(t)
 	repo.WriteFile("secrets.env", "DB=hunter2")
-	repo.AddAndCommit("oops")
+	repo.AddAndCommit("seed")
 	repo.WriteFile(".gitignore", "*.env\n")
-	repo.AddAndCommit("ignore env files")
+	repo.AddAndCommit("ignore env")
 
-	var stdout bytes.Buffer
-	cmd := newRetroignoreTestCmd()
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stdout)
-	cmd.SetArgs([]string{"retroignore", repo.Path, "--no-prompt"})
+	var out bytes.Buffer
+	cmd := newScanTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"scan", repo.Path})
 
-	// Track whether the verify launcher fires; --no-prompt should NOT launch it.
-	called := false
-	prevLauncher := retroignoreVerifyLauncher
-	retroignoreVerifyLauncher = func(*cobra.Command, []string) error {
-		called = true
-		return nil
-	}
-	t.Cleanup(func() { retroignoreVerifyLauncher = prevLauncher })
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("retroignore failed: %v\n%s", err, stdout.String())
-	}
-	if called {
-		t.Errorf("--no-prompt should not launch the verify UI")
+	err := cmd.Execute()
+	// Findings were added, expect exit-code-error 1.
+	var ec *exitCodeError
+	if !errors.As(err, &ec) || ec.code != 1 {
+		t.Fatalf("expected exitCodeError{code:1}, got %v\n%s", err, out.String())
 	}
 
-	manifestPath := filepath.Join(repo.Path, "git-expunge-findings.json")
-	m, err := manifest.ReadJSON(manifestPath)
+	m, readErr := manifest.ReadJSON(filepath.Join(repo.Path, "git-expunge-findings.json"))
+	if readErr != nil {
+		t.Fatalf("read manifest: %v", readErr)
+	}
+	if len(m) == 0 {
+		t.Errorf("expected at least one finding in manifest, got 0")
+	}
+}
+
+// TestScanCmd_PositionalDetectors_RunsOnlyThose pins down that named
+// detectors override the safe default — `scan gitignored` runs only
+// gitignored, ignoring secrets.
+func TestScanCmd_PositionalDetectors_RunsOnlyThose(t *testing.T) {
+	repo := testutil.NewTestRepo(t)
+	repo.WriteFile("secrets.env", "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE")
+	repo.AddAndCommit("seed")
+	// No .gitignore — gitignored has nothing to flag.
+
+	var out bytes.Buffer
+	cmd := newScanTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"scan", "gitignored", repo.Path})
+
+	err := cmd.Execute()
 	if err != nil {
-		t.Fatalf("read manifest: %v", err)
-	}
-	if len(m) != 1 {
-		t.Fatalf("expected 1 finding, got %d", len(m))
-	}
-	var f *domain.Finding
-	for _, v := range m {
-		f = v
-	}
-	if f.Path != "secrets.env" {
-		t.Errorf("expected secrets.env, got %q", f.Path)
-	}
-	if !f.Purge {
-		t.Errorf("expected Purge=true")
+		t.Fatalf("scan gitignored: %v\n%s", err, out.String())
 	}
 
-	out := stdout.String()
-	if !strings.Contains(out, "git-expunge ui") {
-		t.Errorf("expected next-step hint mentioning 'git-expunge ui', got: %s", out)
-	}
-}
-
-func TestRetroignoreCmd_NonTTY_PrintsHintWithoutHanging(t *testing.T) {
-	repo := testutil.NewTestRepo(t)
-	repo.WriteFile("secrets.env", "DB=hunter2")
-	repo.AddAndCommit("oops")
-	repo.WriteFile(".gitignore", "*.env\n")
-	repo.AddAndCommit("ignore env files")
-
-	var stdout bytes.Buffer
-	cmd := newRetroignoreTestCmd()
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stdout)
-	cmd.SetArgs([]string{"retroignore", repo.Path})
-
-	called := false
-	prevLauncher := retroignoreVerifyLauncher
-	retroignoreVerifyLauncher = func(*cobra.Command, []string) error {
-		called = true
-		return nil
-	}
-	t.Cleanup(func() { retroignoreVerifyLauncher = prevLauncher })
-
-	// stdin is non-TTY under `go test`; the command must not block on input.
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("retroignore failed: %v\n%s", err, stdout.String())
-	}
-	if called {
-		t.Errorf("non-TTY run should not auto-launch the verify UI")
-	}
-	if !strings.Contains(stdout.String(), "git-expunge ui") {
-		t.Errorf("expected next-step hint mentioning 'git-expunge ui', got: %s", stdout.String())
-	}
-}
-
-func TestRetroignoreCmd_Yes_LaunchesVerify(t *testing.T) {
-	repo := testutil.NewTestRepo(t)
-	repo.WriteFile("secrets.env", "DB=hunter2")
-	repo.AddAndCommit("oops")
-	repo.WriteFile(".gitignore", "*.env\n")
-	repo.AddAndCommit("ignore env files")
-
-	var stdout bytes.Buffer
-	cmd := newRetroignoreTestCmd()
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stdout)
-	cmd.SetArgs([]string{"retroignore", repo.Path, "--yes"})
-
-	called := false
-	prevLauncher := retroignoreVerifyLauncher
-	retroignoreVerifyLauncher = func(c *cobra.Command, args []string) error {
-		called = true
-		if len(args) == 0 || args[0] != repo.Path {
-			t.Errorf("launcher should receive repo path %q, got %v", repo.Path, args)
+	m, _ := manifest.ReadJSON(filepath.Join(repo.Path, "git-expunge-findings.json"))
+	for _, f := range m {
+		if f.Type == domain.FindingTypeSecret {
+			t.Errorf("scan gitignored must not run secret detection; got: %+v", f)
 		}
-		return nil
-	}
-	t.Cleanup(func() { retroignoreVerifyLauncher = prevLauncher })
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("retroignore failed: %v\n%s", err, stdout.String())
-	}
-	if !called {
-		t.Errorf("--yes should launch the verify UI")
 	}
 }
 
-func TestRetroignoreCmd_NoMatches_PrintsZeroAndExits(t *testing.T) {
+// TestScanCmd_UnknownDetector_Exits2 pins the exit-code-2 path for a bad
+// detector name.
+func TestScanCmd_UnknownDetector_Exits2(t *testing.T) {
+	repo := testutil.NewTestRepo(t)
+	repo.WriteFile("a", "b")
+	repo.AddAndCommit("seed")
+
+	var out bytes.Buffer
+	cmd := newScanTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"scan", "not-a-detector", repo.Path})
+
+	err := cmd.Execute()
+	var ec *exitCodeError
+	if !errors.As(err, &ec) || ec.code != 2 {
+		t.Errorf("expected exitCodeError{code:2}, got %v", err)
+	}
+}
+
+// TestScanCmd_ExitsZeroWhenNothingNew pins down idempotency — running scan
+// twice against an already-clean (or already-scanned) repo returns 0.
+func TestScanCmd_ExitsZeroWhenNothingNew(t *testing.T) {
 	repo := testutil.NewTestRepo(t)
 	repo.WriteFile("README.md", "hello")
-	repo.AddAndCommit("init")
+	repo.AddAndCommit("seed")
 
-	var stdout bytes.Buffer
-	cmd := newRetroignoreTestCmd()
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stdout)
-	cmd.SetArgs([]string{"retroignore", repo.Path, "--no-prompt"})
-
-	prevLauncher := retroignoreVerifyLauncher
-	retroignoreVerifyLauncher = func(*cobra.Command, []string) error {
-		t.Errorf("launcher should not be called when there are no findings")
-		return nil
-	}
-	t.Cleanup(func() { retroignoreVerifyLauncher = prevLauncher })
+	// First run: nothing matches (no secrets, no gitignored). Returns 0.
+	var out bytes.Buffer
+	cmd := newScanTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"scan", repo.Path})
 
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("retroignore failed: %v\n%s", err, stdout.String())
+		t.Fatalf("first scan returned non-nil: %v", err)
 	}
-	if !strings.Contains(stdout.String(), "0 ") && !strings.Contains(stdout.String(), "No ") {
-		t.Errorf("expected zero/no-findings message, got: %s", stdout.String())
+
+	// Second run: still nothing new.
+	out.Reset()
+	cmd = newScanTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"scan", repo.Path})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("second scan returned non-nil: %v", err)
+	}
+}
+
+// TestScanCmd_JSONFlag_EmitsArrayOfNewFindings pins the --json contract.
+func TestScanCmd_JSONFlag_EmitsArrayOfNewFindings(t *testing.T) {
+	repo := testutil.NewTestRepo(t)
+	repo.WriteFile("secrets.env", "DB=hunter2")
+	repo.AddAndCommit("seed")
+	repo.WriteFile(".gitignore", "*.env\n")
+	repo.AddAndCommit("ignore env")
+
+	var out bytes.Buffer
+	cmd := newScanTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"scan", "gitignored", repo.Path, "--json"})
+
+	err := cmd.Execute()
+	var ec *exitCodeError
+	if !errors.As(err, &ec) || ec.code != 1 {
+		t.Fatalf("expected exit code 1 (findings added), got %v", err)
+	}
+
+	body := out.String()
+	if !strings.HasPrefix(strings.TrimSpace(body), "[") {
+		t.Errorf("--json should emit a JSON array, got: %q", body)
+	}
+	if strings.Contains(body, "Added ") || strings.Contains(body, "Manifest:") {
+		t.Errorf("--json should suppress the human-readable summary, got: %q", body)
+	}
+}
+
+// --- list / search / remove / summary ---------------------------------------
+
+func newReadWriteTestCmd() *cobra.Command {
+	root := &cobra.Command{Use: "git-expunge"}
+	l := &cobra.Command{Use: "list [repo]", Args: cobra.MaximumNArgs(1), RunE: runList}
+	se := &cobra.Command{Use: "search <glob>... [repo]", Args: cobra.MinimumNArgs(1), RunE: runSearch}
+	rm := &cobra.Command{Use: "remove <glob>... [repo]", Args: cobra.MinimumNArgs(1), RunE: runRemove}
+	su := &cobra.Command{Use: "summary [repo]", Args: cobra.MaximumNArgs(1), RunE: runSummary}
+	root.AddCommand(l, se, rm, su)
+	return root
+}
+
+func TestListCmd_PrintsTabSeparated(t *testing.T) {
+	repo := testutil.NewTestRepo(t)
+	m := domain.NewManifest()
+	m.Add(&domain.Finding{BlobHash: "abc1234567890", Type: domain.FindingTypeSecret, Path: "secrets.env", Size: 42})
+	m.Add(&domain.Finding{BlobHash: "def4567890123", Type: domain.FindingTypeBinary, Path: "bin/app", Size: 1024})
+	if err := manifest.WriteJSON(m, filepath.Join(repo.Path, "git-expunge-findings.json")); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	var out bytes.Buffer
+	cmd := newReadWriteTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"list", repo.Path})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("list: %v", err)
+	}
+
+	for _, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		if strings.Count(line, "\t") != 3 {
+			t.Errorf("expected 3 tabs per line, got %q", line)
+		}
+	}
+	if !strings.Contains(out.String(), "secret\tabc1234\t42\tsecrets.env") {
+		t.Errorf("expected secret line, got: %q", out.String())
+	}
+}
+
+func TestRemoveCmd_GlobDrops(t *testing.T) {
+	repo := testutil.NewTestRepo(t)
+	m := domain.NewManifest()
+	m.Add(&domain.Finding{BlobHash: "h1", Type: domain.FindingTypeBinary, Path: "vendor/a.bin"})
+	m.Add(&domain.Finding{BlobHash: "h2", Type: domain.FindingTypeBinary, Path: "vendor/b.bin"})
+	m.Add(&domain.Finding{BlobHash: "h3", Type: domain.FindingTypeSecret, Path: "secrets.env"})
+	mp := filepath.Join(repo.Path, "git-expunge-findings.json")
+	if err := manifest.WriteJSON(m, mp); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	var out bytes.Buffer
+	cmd := newReadWriteTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"remove", "vendor/**", repo.Path})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("remove: %v\n%s", err, out.String())
+	}
+
+	after, _ := manifest.ReadJSON(mp)
+	if len(after) != 1 {
+		t.Fatalf("expected 1 entry after remove, got %d: %+v", len(after), after)
+	}
+	if _, ok := after["h3"]; !ok {
+		t.Errorf("expected h3 to remain, got %+v", after)
+	}
+}
+
+func TestRemoveCmd_RefusesEmptyArgs(t *testing.T) {
+	cmd := newReadWriteTestCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"remove"})
+	if err := cmd.Execute(); err == nil {
+		t.Errorf("remove with no args must error (cobra MinimumNArgs)")
+	}
+}
+
+func TestSearchCmd_HistoryGlob_NoManifestWrite(t *testing.T) {
+	repo := testutil.NewTestRepo(t)
+	repo.WriteFile("secrets.env", "DB=x")
+	repo.AddAndCommit("seed")
+
+	mp := filepath.Join(repo.Path, "git-expunge-findings.json")
+	if _, err := os.Stat(mp); err == nil {
+		t.Fatalf("manifest should not exist yet")
+	}
+
+	var out bytes.Buffer
+	cmd := newReadWriteTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"search", "*.env", repo.Path})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("search: %v\n%s", err, out.String())
+	}
+
+	if !strings.Contains(out.String(), "secrets.env") {
+		t.Errorf("expected secrets.env in search output, got: %q", out.String())
+	}
+	if _, err := os.Stat(mp); err == nil {
+		t.Errorf("search must not write the manifest")
+	}
+}
+
+func TestSummaryCmd_CountsByType(t *testing.T) {
+	repo := testutil.NewTestRepo(t)
+	m := domain.NewManifest()
+	m.Add(&domain.Finding{BlobHash: "h1", Type: domain.FindingTypeSecret, Path: "a"})
+	m.Add(&domain.Finding{BlobHash: "h2", Type: domain.FindingTypeSecret, Path: "b"})
+	m.Add(&domain.Finding{BlobHash: "h3", Type: domain.FindingTypeBinary, Path: "c"})
+	if err := manifest.WriteJSON(m, filepath.Join(repo.Path, "git-expunge-findings.json")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	var out bytes.Buffer
+	cmd := newReadWriteTestCmd()
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"summary", repo.Path})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("summary: %v", err)
+	}
+
+	body := out.String()
+	if !strings.Contains(body, "Total: 3") {
+		t.Errorf("expected 'Total: 3', got: %q", body)
+	}
+	if !strings.Contains(body, "secret") || !strings.Contains(body, "binary") {
+		t.Errorf("expected per-type counts, got: %q", body)
+	}
+}
+
+func TestParseScanArgs(t *testing.T) {
+	tests := []struct {
+		args      []string
+		detectors []string
+		repo      string
+		wantErr   bool
+	}{
+		{[]string{}, nil, ".", false},
+		{[]string{"."}, nil, ".", false},
+		{[]string{"secrets"}, []string{"secrets"}, ".", false},
+		{[]string{"secrets", "."}, []string{"secrets"}, ".", false},
+		{[]string{"secrets", "gitignored"}, []string{"secrets", "gitignored"}, ".", false},
+		{[]string{"secrets", "gitignored", "/tmp/repo"}, []string{"secrets", "gitignored"}, "/tmp/repo", false},
+		{[]string{"all"}, []string{"all"}, ".", false},
+		// A single non-detector arg is treated as a repo path, not an error.
+		{[]string{"/tmp/repo-path"}, nil, "/tmp/repo-path", false},
+		// An unknown name in a non-trailing slot can't be re-interpreted
+		// as a repo path → error.
+		{[]string{"not-a-detector", "secrets"}, nil, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
+			got, repo, err := parseScanArgs(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("err mismatch: got %v want err=%v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if repo != tt.repo {
+				t.Errorf("repo: got %q want %q", repo, tt.repo)
+			}
+			if len(got) != len(tt.detectors) {
+				t.Errorf("detectors: got %v want %v", got, tt.detectors)
+			}
+		})
 	}
 }

@@ -17,7 +17,6 @@ func TestFromManifest(t *testing.T) {
 		Size:     1024 * 1024, // 1MB
 		MimeType: "application/x-executable",
 		Commits:  []string{"commit1", "commit2"},
-		Purge:    false,
 	})
 	manifest.Add(&domain.Finding{
 		BlobHash: "def456abc123",
@@ -25,7 +24,6 @@ func TestFromManifest(t *testing.T) {
 		Path:     ".env",
 		Rule:     "aws-access-key",
 		Commits:  []string{"commit3"},
-		Purge:    true,
 	})
 
 	var buf bytes.Buffer
@@ -49,8 +47,11 @@ func TestFromManifest(t *testing.T) {
 	}
 
 	// Check binary entry
-	if !strings.Contains(output, "### [ ] bin/app") {
-		t.Error("missing binary entry with unchecked box")
+	if !strings.Contains(output, "### bin/app") {
+		t.Error("missing binary entry")
+	}
+	if strings.Contains(output, "### [") {
+		t.Error("report should not render checkboxes; membership in the manifest is the intent")
 	}
 	if !strings.Contains(output, "`abc123def456`") {
 		t.Error("missing blob hash")
@@ -60,8 +61,8 @@ func TestFromManifest(t *testing.T) {
 	}
 
 	// Check secret entry
-	if !strings.Contains(output, "### [x] .env") {
-		t.Error("missing secret entry with checked box")
+	if !strings.Contains(output, "### .env") {
+		t.Error("missing secret entry")
 	}
 	if !strings.Contains(output, "aws-access-key") {
 		t.Error("missing rule")
@@ -111,9 +112,6 @@ Review the findings below.
 	if binary.Path != "bin/app" {
 		t.Errorf("expected path bin/app, got %s", binary.Path)
 	}
-	if binary.Purge {
-		t.Error("binary should not be marked for purge")
-	}
 
 	// Check secret
 	secret := manifest["def456abc123"]
@@ -125,9 +123,6 @@ Review the findings below.
 	}
 	if secret.Path != ".env" {
 		t.Errorf("expected path .env, got %s", secret.Path)
-	}
-	if !secret.Purge {
-		t.Error("secret should be marked for purge")
 	}
 	if secret.Rule != "aws-access-key" {
 		t.Errorf("expected rule aws-access-key, got %s", secret.Rule)
@@ -144,7 +139,6 @@ func TestRoundTrip(t *testing.T) {
 		Size:     2048,
 		MimeType: "application/octet-stream",
 		Commits:  []string{"c1"},
-		Purge:    true,
 	})
 	original.Add(&domain.Finding{
 		BlobHash: "fedcba9876543210fedcba9876543210fedcba98",
@@ -152,7 +146,6 @@ func TestRoundTrip(t *testing.T) {
 		Path:     "config/secrets.yaml",
 		Rule:     "generic-api-key",
 		Commits:  []string{"c2", "c3"},
-		Purge:    false,
 	})
 
 	// Generate report
@@ -184,9 +177,6 @@ func TestRoundTrip(t *testing.T) {
 		}
 		if p.Path != orig.Path {
 			t.Errorf("hash %s: path mismatch: %s vs %s", hash, p.Path, orig.Path)
-		}
-		if p.Purge != orig.Purge {
-			t.Errorf("hash %s: purge mismatch: %v vs %v", hash, p.Purge, orig.Purge)
 		}
 		if p.Rule != orig.Rule {
 			t.Errorf("hash %s: rule mismatch: %s vs %s", hash, p.Rule, orig.Rule)

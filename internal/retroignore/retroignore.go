@@ -28,7 +28,7 @@ type blobAtPath struct {
 //
 // If existing is non-nil, the returned manifest contains all of its entries
 // (unchanged) plus the new findings; on blob-hash collision the existing
-// entry wins so user-curated state (Purge, Type) is preserved.
+// entry wins so user-curated state (Type, etc.) is preserved.
 //
 // Complexity: O(B + U) where B is the number of (path, blob) tuples across
 // history and U is the number of unique paths. The matcher runs as a single
@@ -104,7 +104,6 @@ func BuildManifest(repoPath string, existing domain.Manifest) (domain.Manifest, 
 				Size:     info.size,
 				Rule:     formatRule(match),
 				Commits:  commitSliceFromSet(info.commits),
-				Purge:    true,
 			}
 		}
 	}

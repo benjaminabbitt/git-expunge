@@ -39,9 +39,6 @@ func TestRetroignore_EndToEnd_ManifestDrivesRewrite(t *testing.T) {
 	paths := make(map[string]bool)
 	for _, f := range m {
 		paths[f.Path] = true
-		if !f.Purge {
-			t.Errorf("expected Purge=true for %q", f.Path)
-		}
 	}
 
 	for _, expect := range []string{"creds.env", "sub/app.log", "data/cache.bin"} {
